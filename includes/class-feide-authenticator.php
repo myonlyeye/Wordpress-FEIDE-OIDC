@@ -141,16 +141,19 @@ class Feide_Authenticator {
      * Bytt autorisasjonskode mot access token
      */
     private function exchange_code_for_token($code) {
+        // FEIDE/Dataporten krever HTTP Basic Authentication
+        $auth = base64_encode($this->settings['client_id'] . ':' . $this->settings['client_secret']);
+
         $response = wp_remote_post($this->settings['token_endpoint'], array(
             'body' => array(
                 'grant_type' => 'authorization_code',
                 'code' => $code,
-                'redirect_uri' => $this->settings['redirect_uri'],
-                'client_id' => $this->settings['client_id'],
-                'client_secret' => $this->settings['client_secret']
+                'redirect_uri' => $this->settings['redirect_uri']
             ),
             'headers' => array(
-                'Accept' => 'application/json'
+                'Authorization' => 'Basic ' . $auth,
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/x-www-form-urlencoded'
             )
         ));
 
