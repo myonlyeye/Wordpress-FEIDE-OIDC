@@ -169,6 +169,9 @@ class Feide_WP_Auth_Admin {
                 <a href="?page=feide-wp-auth&tab=roles" class="nav-tab <?php echo $active_tab === 'roles' ? 'nav-tab-active' : ''; ?>">
                     Rolletildeling
                 </a>
+                <a href="?page=feide-wp-auth&tab=debug" class="nav-tab <?php echo $active_tab === 'debug' ? 'nav-tab-active' : ''; ?>">
+                    Debug
+                </a>
             </h2>
 
             <form method="post" action="options.php">
@@ -184,6 +187,9 @@ class Feide_WP_Auth_Admin {
                         break;
                     case 'roles':
                         $this->render_roles_tab($settings);
+                        break;
+                    case 'debug':
+                        $this->render_debug_tab($settings);
                         break;
                     default:
                         $this->render_settings_tab($settings);
@@ -713,6 +719,65 @@ class Feide_WP_Auth_Admin {
             });
         });
         </script>
+        <?php
+    }
+
+    /**
+     * Render debug-fane
+     */
+    private function render_debug_tab($settings) {
+        ?>
+        <h2>Debug-informasjon</h2>
+        <p>Denne fanen viser alle lagrede innstillinger og siste feilmeldinger. Dette er nyttig for å feilsøke tilgangsproblemer.</p>
+
+        <h3>Lagrede innstillinger</h3>
+        <div style="background: #f5f5f5; padding: 15px; border: 1px solid #ddd; overflow-x: auto;">
+            <pre><?php echo esc_html(print_r($settings, true)); ?></pre>
+        </div>
+
+        <?php
+        $debug_info = get_transient('feide_access_denied_debug');
+        if ($debug_info):
+        ?>
+        <h3>Siste tilgangsnekting (debug-info)</h3>
+        <div style="background: #fff3cd; padding: 15px; border: 1px solid #ffc107;">
+            <p><strong>Tidspunkt:</strong> <?php echo esc_html($debug_info['timestamp']); ?></p>
+
+            <h4>Mottatte attributter fra FEIDE:</h4>
+            <div style="background: #fff; padding: 10px; border: 1px solid #ddd; overflow-x: auto;">
+                <pre><?php echo esc_html(print_r($debug_info['attributes'], true)); ?></pre>
+            </div>
+
+            <h4>Rolle-regler som ble sjekket:</h4>
+            <div style="background: #fff; padding: 10px; border: 1px solid #ddd; overflow-x: auto;">
+                <pre><?php echo esc_html(print_r($debug_info['role_mappings'], true)); ?></pre>
+            </div>
+
+            <p>
+                <a href="<?php echo admin_url('admin.php?page=feide-wp-auth&tab=roles'); ?>" class="button button-primary">
+                    Gå til rolletildeling
+                </a>
+                <a href="<?php echo admin_url('admin.php?page=feide-wp-auth&tab=settings'); ?>" class="button">
+                    Aktiver "Tillat alle autentiserte brukere"
+                </a>
+            </p>
+        </div>
+        <?php else: ?>
+        <p><em>Ingen debug-informasjon tilgjengelig. Debug-info lagres når en pålogging nektes tilgang.</em></p>
+        <?php endif; ?>
+
+        <h3>Hurtigfiks</h3>
+        <div style="background: #d4edda; padding: 15px; border: 1px solid #28a745; margin-top: 20px;">
+            <h4>Hvis du får "Tilgang nektet":</h4>
+            <ol>
+                <li>Gå til <a href="<?php echo admin_url('admin.php?page=feide-wp-auth&tab=settings'); ?>">OpenID Innstillinger</a></li>
+                <li>Kryss av for "Gi alle autentiserte FEIDE-brukere tilgang"</li>
+                <li>Velg en "Standard rolle" (f.eks. Subscriber)</li>
+                <li>Klikk "Lagre innstillinger"</li>
+                <li>Prøv å logge inn igjen</li>
+            </ol>
+            <p><strong>Eller:</strong> Konfigurer rolle-regler i <a href="<?php echo admin_url('admin.php?page=feide-wp-auth&tab=roles'); ?>">Rolletildeling</a> basert på attributtene over.</p>
+        </div>
         <?php
     }
 }

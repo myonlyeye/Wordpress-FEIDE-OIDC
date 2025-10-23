@@ -251,18 +251,33 @@ class Feide_Authenticator {
 
         $role_mappings = isset($this->settings['role_mappings']) ? $this->settings['role_mappings'] : array();
 
-        if (empty($role_mappings)) {
-            // Hvis ingen rolle-mappinger er definert, gi standard tilgang
-            return array('allowed' => true, 'roles' => array('subscriber'));
+        // Filtrer ut tomme/ugyldige mappinger
+        $valid_mappings = array();
+        foreach ($role_mappings as $mapping) {
+            if (isset($mapping['criteria']) && isset($mapping['role']) && !empty($mapping['criteria'])) {
+                // Sjekk om minst ett kriterium har både attribute og value
+                $has_valid_criterion = false;
+                foreach ($mapping['criteria'] as $criterion) {
+                    if (!empty($criterion['attribute']) && !empty($criterion['value'])) {
+                        $has_valid_criterion = true;
+                        break;
+                    }
+                }
+                if ($has_valid_criterion) {
+                    $valid_mappings[] = $mapping;
+                }
+            }
+        }
+
+        if (empty($valid_mappings)) {
+            // Hvis ingen gyldige rolle-mappinger er definert, gi standard tilgang
+            $default_role = isset($this->settings['default_role']) ? $this->settings['default_role'] : 'subscriber';
+            return array('allowed' => true, 'roles' => array($default_role));
         }
 
         $matched_roles = array();
 
-        foreach ($role_mappings as $mapping) {
-            if (!isset($mapping['criteria']) || !isset($mapping['role'])) {
-                continue;
-            }
-
+        foreach ($valid_mappings as $mapping) {
             $criteria_met = $this->check_criteria($attributes, $mapping['criteria'], $mapping['operator']);
 
             if ($criteria_met) {
