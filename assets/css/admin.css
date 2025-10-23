@@ -1,0 +1,133 @@
+/* FEIDE WordPress Auth - Admin Styles */
+
+.feide-test-results {
+    margin-top: 20px;
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    padding: 20px;
+}
+
+.feide-test-results table {
+    margin-top: 10px;
+}
+
+.feide-test-results table table {
+    margin: 10px 0;
+    background: #f9f9f9;
+}
+
+.role-mapping-item {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+}
+
+.role-mapping-item h3 {
+    margin-top: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.criteria-container {
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.criterion-item {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.criterion-item input[type="text"] {
+    flex: 1;
+    min-width: 200px;
+}
+
+.criterion-item select {
+    min-width: 150px;
+}
+
+.criterion-item .button {
+    flex-shrink: 0;
+}
+
+.feide-admin-notice {
+    margin: 20px 0;
+}
+
+.feide-login-button {
+    margin-bottom: 16px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 782px) {
+    .criterion-item {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .criterion-item input[type="text"],
+    .criterion-item select {
+        width: 100%;
+    }
+}
+
+/* Styling for nested tables in test results */
+.feide-test-results table code {
+    background: #f0f0f1;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 13px;
+}
+
+.feide-test-results table td {
+    vertical-align: top;
+}
+
+/* Better visibility for important fields */
+input#client_id,
+input#client_secret {
+    font-family: monospace;
+}
+
+/* Help text styling */
+.form-table .description {
+    color: #646970;
+    font-size: 13px;
+}
+
+/* Button spacing */
+.add-criterion,
+.remove-criterion {
+    margin-left: 5px;
+}
+
+/* Alert styling */
+.feide-warning {
+    background: #fcf8e3;
+    border-left: 4px solid #f0ad4e;
+    padding: 12px;
+    margin: 15px 0;
+}
+
+.feide-success {
+    background: #d4edda;
+    border-left: 4px solid #28a745;
+    padding: 12px;
+    margin: 15px 0;
+}
+
+.feide-error {
+    background: #f8d7da;
+    border-left: 4px solid #dc3545;
+    padding: 12px;
+    margin: 15px 0;
+}
