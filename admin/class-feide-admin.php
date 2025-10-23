@@ -39,22 +39,45 @@ class Feide_WP_Auth_Admin {
      * Sanitize innstillinger
      */
     public function sanitize_settings($input) {
-        $sanitized = array();
+        // Hent eksisterende innstillinger
+        $existing = get_option('feide_wp_auth_settings', array());
 
-        // OpenID Connect innstillinger
-        $sanitized['client_id'] = isset($input['client_id']) ? sanitize_text_field($input['client_id']) : '';
-        $sanitized['client_secret'] = isset($input['client_secret']) ? sanitize_text_field($input['client_secret']) : '';
-        $sanitized['redirect_uri'] = isset($input['redirect_uri']) ? esc_url_raw($input['redirect_uri']) : '';
-        $sanitized['scope'] = isset($input['scope']) ? sanitize_text_field($input['scope']) : '';
-        $sanitized['authorize_endpoint'] = isset($input['authorize_endpoint']) ? esc_url_raw($input['authorize_endpoint']) : '';
-        $sanitized['token_endpoint'] = isset($input['token_endpoint']) ? esc_url_raw($input['token_endpoint']) : '';
-        $sanitized['userinfo_endpoint'] = isset($input['userinfo_endpoint']) ? esc_url_raw($input['userinfo_endpoint']) : '';
-        $sanitized['groupinfo_endpoint'] = isset($input['groupinfo_endpoint']) ? esc_url_raw($input['groupinfo_endpoint']) : '';
+        // Start med eksisterende verdier
+        $sanitized = $existing;
 
-        // Auto-oppretting av brukere
-        $sanitized['auto_create_users'] = isset($input['auto_create_users']) ? true : false;
+        // OpenID Connect innstillinger - kun oppdater hvis de finnes i input
+        if (isset($input['client_id'])) {
+            $sanitized['client_id'] = sanitize_text_field($input['client_id']);
+        }
+        if (isset($input['client_secret'])) {
+            $sanitized['client_secret'] = sanitize_text_field($input['client_secret']);
+        }
+        if (isset($input['redirect_uri'])) {
+            $sanitized['redirect_uri'] = esc_url_raw($input['redirect_uri']);
+        }
+        if (isset($input['scope'])) {
+            $sanitized['scope'] = sanitize_text_field($input['scope']);
+        }
+        if (isset($input['authorize_endpoint'])) {
+            $sanitized['authorize_endpoint'] = esc_url_raw($input['authorize_endpoint']);
+        }
+        if (isset($input['token_endpoint'])) {
+            $sanitized['token_endpoint'] = esc_url_raw($input['token_endpoint']);
+        }
+        if (isset($input['userinfo_endpoint'])) {
+            $sanitized['userinfo_endpoint'] = esc_url_raw($input['userinfo_endpoint']);
+        }
+        if (isset($input['groupinfo_endpoint'])) {
+            $sanitized['groupinfo_endpoint'] = esc_url_raw($input['groupinfo_endpoint']);
+        }
 
-        // Attributt-mapping
+        // Auto-oppretting av brukere - kun oppdater hvis checkbox finnes i skjemaet
+        // Vi må sjekke om dette feltet faktisk er en del av det innsendte skjemaet
+        if (array_key_exists('auto_create_users', $input)) {
+            $sanitized['auto_create_users'] = isset($input['auto_create_users']) ? true : false;
+        }
+
+        // Attributt-mapping - kun oppdater hvis det finnes i input
         if (isset($input['attribute_mapping']) && is_array($input['attribute_mapping'])) {
             $sanitized['attribute_mapping'] = array();
             foreach ($input['attribute_mapping'] as $key => $value) {
@@ -62,7 +85,7 @@ class Feide_WP_Auth_Admin {
             }
         }
 
-        // Rolle-mappinger
+        // Rolle-mappinger - kun oppdater hvis det finnes i input
         if (isset($input['role_mappings']) && is_array($input['role_mappings'])) {
             $sanitized['role_mappings'] = array();
             foreach ($input['role_mappings'] as $mapping) {
@@ -74,11 +97,13 @@ class Feide_WP_Auth_Admin {
                     );
 
                     foreach ($mapping['criteria'] as $criterion) {
-                        $clean_mapping['criteria'][] = array(
-                            'attribute' => sanitize_text_field($criterion['attribute']),
-                            'comparison' => sanitize_text_field($criterion['comparison']),
-                            'value' => sanitize_text_field($criterion['value'])
-                        );
+                        if (!empty($criterion['attribute']) || !empty($criterion['value'])) {
+                            $clean_mapping['criteria'][] = array(
+                                'attribute' => sanitize_text_field($criterion['attribute']),
+                                'comparison' => sanitize_text_field($criterion['comparison']),
+                                'value' => sanitize_text_field($criterion['value'])
+                            );
+                        }
                     }
 
                     $sanitized['role_mappings'][] = $clean_mapping;
