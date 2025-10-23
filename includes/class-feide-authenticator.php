@@ -32,6 +32,16 @@ class Feide_Authenticator {
         // Sjekk for feil
         if (isset($_GET['error'])) {
             $error_description = isset($_GET['error_description']) ? $_GET['error_description'] : $_GET['error'];
+
+            // Hvis dette er en test, lagre feilen og redirect til admin
+            $state = isset($_GET['state']) ? $_GET['state'] : '';
+            if ($state && get_transient('feide_test_mode_' . $state)) {
+                delete_transient('feide_test_mode_' . $state);
+                set_transient('feide_test_error', $error_description, 60);
+                wp_redirect(admin_url('admin.php?page=feide-wp-auth&tab=test'));
+                exit;
+            }
+
             wp_die('FEIDE autentiseringsfeil: ' . esc_html($error_description));
         }
 
@@ -40,7 +50,13 @@ class Feide_Authenticator {
             wp_die('Ugyldig state-parameter. Mulig CSRF-angrep.');
         }
 
-        delete_transient('feide_auth_state_' . $_GET['state']);
+        $state = $_GET['state'];
+        $is_test_mode = get_transient('feide_test_mode_' . $state);
+
+        delete_transient('feide_auth_state_' . $state);
+        if ($is_test_mode) {
+            delete_transient('feide_test_mode_' . $state);
+        }
 
         // Hent autorisasjonskode
         if (!isset($_GET['code'])) {
@@ -53,6 +69,11 @@ class Feide_Authenticator {
         $token_data = $this->exchange_code_for_token($code);
 
         if (is_wp_error($token_data)) {
+            if ($is_test_mode) {
+                set_transient('feide_test_error', $token_data->get_error_message(), 60);
+                wp_redirect(admin_url('admin.php?page=feide-wp-auth&tab=test'));
+                exit;
+            }
             wp_die('Feil ved henting av access token: ' . $token_data->get_error_message());
         }
 
@@ -60,6 +81,11 @@ class Feide_Authenticator {
         $user_info = $this->get_user_info($token_data['access_token']);
 
         if (is_wp_error($user_info)) {
+            if ($is_test_mode) {
+                set_transient('feide_test_error', $user_info->get_error_message(), 60);
+                wp_redirect(admin_url('admin.php?page=feide-wp-auth&tab=test'));
+                exit;
+            }
             wp_die('Feil ved henting av brukerinformasjon: ' . $user_info->get_error_message());
         }
 
@@ -71,6 +97,23 @@ class Feide_Authenticator {
 
         // Kombiner bruker- og gruppeinformasjon
         $all_attributes = array_merge($user_info, array('groups' => $group_info));
+
+        // Hvis dette er test-modus, lagre resultatene og redirect til admin
+        if ($is_test_mode) {
+            $test_result = array(
+                'user_info' => $user_info,
+                'group_info' => $group_info,
+                'token_info' => array(
+                    'token_type' => isset($token_data['token_type']) ? $token_data['token_type'] : '',
+                    'expires_in' => isset($token_data['expires_in']) ? $token_data['expires_in'] : '',
+                    'scope' => isset($token_data['scope']) ? $token_data['scope'] : ''
+                )
+            );
+
+            set_transient('feide_test_result', $test_result, 600);
+            wp_redirect(admin_url('admin.php?page=feide-wp-auth&tab=test&test-success=1'));
+            exit;
+        }
 
         // Sjekk om brukeren oppfyller kriterier
         $role_check = $this->check_role_criteria($all_attributes);
@@ -392,10 +435,11 @@ class Feide_Authenticator {
     private function get_test_authorization_url() {
         $state = wp_create_nonce('feide_test_state');
         set_transient('feide_auth_state_' . $state, true, 600);
+        set_transient('feide_test_mode_' . $state, true, 600);
 
         $params = array(
             'client_id' => $this->settings['client_id'],
-            'redirect_uri' => admin_url('admin.php?page=feide-wp-auth&test-callback=1'),
+            'redirect_uri' => $this->settings['redirect_uri'],
             'response_type' => 'code',
             'scope' => $this->settings['scope'],
             'state' => $state

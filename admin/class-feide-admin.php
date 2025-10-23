@@ -13,7 +13,6 @@ class Feide_WP_Auth_Admin {
         add_action('admin_menu', array($this, 'add_admin_menu'));
         add_action('admin_init', array($this, 'register_settings'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_scripts'));
-        add_action('admin_init', array($this, 'handle_test_callback'));
     }
 
     /**
@@ -105,94 +104,6 @@ class Feide_WP_Auth_Admin {
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('feide_test_auth')
         ));
-    }
-
-    /**
-     * Håndter test-callback
-     */
-    public function handle_test_callback() {
-        if (!isset($_GET['page']) || $_GET['page'] !== 'feide-wp-auth') {
-            return;
-        }
-
-        if (!isset($_GET['test-callback']) || !isset($_GET['code'])) {
-            return;
-        }
-
-        if (!current_user_can('manage_options')) {
-            wp_die('Ingen tilgang');
-        }
-
-        // Verifiser state
-        if (!isset($_GET['state']) || !get_transient('feide_auth_state_' . $_GET['state'])) {
-            wp_die('Ugyldig state-parameter.');
-        }
-
-        delete_transient('feide_auth_state_' . $_GET['state']);
-
-        $settings = get_option('feide_wp_auth_settings', array());
-        $code = sanitize_text_field($_GET['code']);
-
-        // Bytt kode mot token
-        $token_response = wp_remote_post($settings['token_endpoint'], array(
-            'body' => array(
-                'grant_type' => 'authorization_code',
-                'code' => $code,
-                'redirect_uri' => admin_url('admin.php?page=feide-wp-auth&test-callback=1'),
-                'client_id' => $settings['client_id'],
-                'client_secret' => $settings['client_secret']
-            )
-        ));
-
-        if (is_wp_error($token_response)) {
-            set_transient('feide_test_error', $token_response->get_error_message(), 60);
-            wp_redirect(admin_url('admin.php?page=feide-wp-auth&tab=test'));
-            exit;
-        }
-
-        $token_data = json_decode(wp_remote_retrieve_body($token_response), true);
-
-        if (!isset($token_data['access_token'])) {
-            set_transient('feide_test_error', 'Mottok ikke access token', 60);
-            wp_redirect(admin_url('admin.php?page=feide-wp-auth&tab=test'));
-            exit;
-        }
-
-        // Hent brukerinformasjon
-        $userinfo_response = wp_remote_get($settings['userinfo_endpoint'], array(
-            'headers' => array(
-                'Authorization' => 'Bearer ' . $token_data['access_token']
-            )
-        ));
-
-        $user_info = json_decode(wp_remote_retrieve_body($userinfo_response), true);
-
-        // Hent gruppeinformasjon
-        $group_info = array();
-        if (!empty($settings['groupinfo_endpoint'])) {
-            $groupinfo_response = wp_remote_get($settings['groupinfo_endpoint'], array(
-                'headers' => array(
-                    'Authorization' => 'Bearer ' . $token_data['access_token']
-                )
-            ));
-            $group_info = json_decode(wp_remote_retrieve_body($groupinfo_response), true);
-        }
-
-        // Kombiner all informasjon
-        $all_info = array(
-            'user_info' => $user_info,
-            'group_info' => $group_info,
-            'token_info' => array(
-                'token_type' => $token_data['token_type'],
-                'expires_in' => $token_data['expires_in'],
-                'scope' => isset($token_data['scope']) ? $token_data['scope'] : ''
-            )
-        );
-
-        set_transient('feide_test_result', $all_info, 600);
-
-        wp_redirect(admin_url('admin.php?page=feide-wp-auth&tab=test&test-success=1'));
-        exit;
     }
 
     /**
@@ -401,10 +312,11 @@ class Feide_WP_Auth_Admin {
     private function get_test_auth_url($settings) {
         $state = wp_create_nonce('feide_test_state');
         set_transient('feide_auth_state_' . $state, true, 600);
+        set_transient('feide_test_mode_' . $state, true, 600);
 
         $params = array(
             'client_id' => $settings['client_id'],
-            'redirect_uri' => admin_url('admin.php?page=feide-wp-auth&test-callback=1'),
+            'redirect_uri' => $settings['redirect_uri'],
             'response_type' => 'code',
             'scope' => $settings['scope'],
             'state' => $state
