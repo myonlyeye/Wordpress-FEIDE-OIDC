@@ -77,6 +77,16 @@ class Feide_WP_Auth_Admin {
             $sanitized['auto_create_users'] = isset($input['auto_create_users']) ? true : false;
         }
 
+        // Tillat alle autentiserte brukere
+        if (array_key_exists('allow_all_authenticated', $input)) {
+            $sanitized['allow_all_authenticated'] = isset($input['allow_all_authenticated']) ? true : false;
+        }
+
+        // Standard rolle for nye brukere
+        if (isset($input['default_role'])) {
+            $sanitized['default_role'] = sanitize_text_field($input['default_role']);
+        }
+
         // Attributt-mapping - kun oppdater hvis det finnes i input
         if (isset($input['attribute_mapping']) && is_array($input['attribute_mapping'])) {
             $sanitized['attribute_mapping'] = array();
@@ -281,6 +291,38 @@ class Feide_WP_Auth_Admin {
                                value="1" <?php checked(!empty($settings['auto_create_users'])); ?>>
                         Opprett automatisk nye brukere ved første innlogging
                     </label>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">
+                    <label for="allow_all_authenticated">Tilgangskontroll</label>
+                </th>
+                <td>
+                    <label>
+                        <input type="checkbox" id="allow_all_authenticated" name="feide_wp_auth_settings[allow_all_authenticated]"
+                               value="1" <?php checked(!empty($settings['allow_all_authenticated'])); ?>>
+                        Gi alle autentiserte FEIDE-brukere tilgang (ignorer rolle-regler)
+                    </label>
+                    <p class="description">Hvis denne er avkrysset, vil alle som logger inn med FEIDE få tilgang uten å måtte oppfylle rolle-kriterier.</p>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">
+                    <label for="default_role">Standard rolle</label>
+                </th>
+                <td>
+                    <select id="default_role" name="feide_wp_auth_settings[default_role]">
+                        <?php
+                        $wp_roles = wp_roles()->get_names();
+                        $default_role = isset($settings['default_role']) ? $settings['default_role'] : 'subscriber';
+                        foreach ($wp_roles as $role_key => $role_name):
+                        ?>
+                            <option value="<?php echo esc_attr($role_key); ?>" <?php selected($default_role, $role_key); ?>>
+                                <?php echo esc_html($role_name); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <p class="description">Standard rolle for nye brukere (brukes når "Gi alle tilgang" er aktivert eller ingen rolle-regler er definert)</p>
                 </td>
             </tr>
         </table>

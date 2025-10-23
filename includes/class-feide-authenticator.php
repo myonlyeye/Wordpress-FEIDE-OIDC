@@ -119,7 +119,25 @@ class Feide_Authenticator {
         $role_check = $this->check_role_criteria($all_attributes);
 
         if (!$role_check['allowed']) {
-            wp_die('Du har ikke tilgang til dette systemet. Kontakt administrator om du mener dette er feil.');
+            // Lagre debug-info for administrator
+            if (current_user_can('manage_options')) {
+                $debug_info = array(
+                    'attributes' => $all_attributes,
+                    'role_mappings' => isset($this->settings['role_mappings']) ? $this->settings['role_mappings'] : array(),
+                    'timestamp' => current_time('mysql')
+                );
+                set_transient('feide_access_denied_debug', $debug_info, 3600);
+
+                $message = '<h1>Tilgang nektet</h1>';
+                $message .= '<p>Ingen av rolle-reglene matcher dine FEIDE-attributter.</p>';
+                $message .= '<p><a href="' . admin_url('admin.php?page=feide-wp-auth&tab=roles') . '">Klikk her for å konfigurere rolletildeling</a></p>';
+                $message .= '<details><summary>Debug-informasjon (kun synlig for administratorer)</summary>';
+                $message .= '<pre>' . print_r($debug_info, true) . '</pre>';
+                $message .= '</details>';
+                wp_die($message);
+            } else {
+                wp_die('Du har ikke tilgang til dette systemet. Kontakt administrator om du mener dette er feil.');
+            }
         }
 
         // Finn eller opprett bruker
@@ -225,6 +243,12 @@ class Feide_Authenticator {
      * Sjekk om brukerens attributter oppfyller rolle-kriterier
      */
     private function check_role_criteria($attributes) {
+        // Sjekk om alle autentiserte brukere skal gis tilgang
+        if (!empty($this->settings['allow_all_authenticated'])) {
+            $default_role = isset($this->settings['default_role']) ? $this->settings['default_role'] : 'subscriber';
+            return array('allowed' => true, 'roles' => array($default_role));
+        }
+
         $role_mappings = isset($this->settings['role_mappings']) ? $this->settings['role_mappings'] : array();
 
         if (empty($role_mappings)) {

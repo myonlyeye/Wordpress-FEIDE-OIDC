@@ -41,6 +41,8 @@ function feide_wp_auth_activate() {
         'userinfo_endpoint' => 'https://auth.dataporten.no/userinfo',
         'groupinfo_endpoint' => 'https://groups-api.dataporten.no/groups/me/groups',
         'auto_create_users' => true,
+        'allow_all_authenticated' => false,
+        'default_role' => 'subscriber',
         'attribute_mapping' => array(
             'username' => 'sub',
             'email' => 'email',
