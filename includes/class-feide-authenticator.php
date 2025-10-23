@@ -119,22 +119,53 @@ class Feide_Authenticator {
         $role_check = $this->check_role_criteria($all_attributes);
 
         if (!$role_check['allowed']) {
-            // Lagre debug-info for administrator
-            if (current_user_can('manage_options')) {
-                $debug_info = array(
-                    'attributes' => $all_attributes,
-                    'role_mappings' => isset($this->settings['role_mappings']) ? $this->settings['role_mappings'] : array(),
-                    'timestamp' => current_time('mysql')
-                );
-                set_transient('feide_access_denied_debug', $debug_info, 3600);
+            // Lagre omfattende debug-info
+            $debug_info = array(
+                'attributes' => $all_attributes,
+                'settings' => array(
+                    'allow_all_authenticated' => isset($this->settings['allow_all_authenticated']) ? $this->settings['allow_all_authenticated'] : 'NOT SET',
+                    'default_role' => isset($this->settings['default_role']) ? $this->settings['default_role'] : 'NOT SET',
+                    'role_mappings' => isset($this->settings['role_mappings']) ? $this->settings['role_mappings'] : 'NOT SET',
+                ),
+                'role_check_result' => $role_check,
+                'timestamp' => current_time('mysql')
+            );
+            set_transient('feide_access_denied_debug', $debug_info, 3600);
 
-                $message = '<h1>Tilgang nektet</h1>';
-                $message .= '<p>Ingen av rolle-reglene matcher dine FEIDE-attributter.</p>';
-                $message .= '<p><a href="' . admin_url('admin.php?page=feide-wp-auth&tab=roles') . '">Klikk her for å konfigurere rolletildeling</a></p>';
-                $message .= '<details><summary>Debug-informasjon (kun synlig for administratorer)</summary>';
-                $message .= '<pre>' . print_r($debug_info, true) . '</pre>';
+            // Hvis bruker er admin, vis detaljert info
+            if (current_user_can('manage_options')) {
+                $message = '<h1>Tilgang nektet - Debug-modus (kun synlig for administratorer)</h1>';
+
+                // Analyser hvorfor tilgang ble nektet
+                $message .= '<div style="background: #fff3cd; padding: 15px; margin: 20px 0; border-left: 4px solid #ffc107;">';
+                $message .= '<h2>Årsak til tilgangsnekting:</h2>';
+
+                if (empty($this->settings['allow_all_authenticated'])) {
+                    $message .= '<p>❌ "Tillat alle autentiserte brukere" er IKKE aktivert</p>';
+                } else {
+                    $message .= '<p>✅ "Tillat alle autentiserte brukere" ER aktivert (men virket ikke?)</p>';
+                }
+
+                $role_mappings = isset($this->settings['role_mappings']) ? $this->settings['role_mappings'] : array();
+                if (empty($role_mappings)) {
+                    $message .= '<p>ℹ️ Ingen rolle-regler er definert</p>';
+                } else {
+                    $message .= '<p>ℹ️ ' . count($role_mappings) . ' rolle-regel(er) ble sjekket, men ingen matchet</p>';
+                }
+
+                $message .= '</div>';
+
+                $message .= '<h3>Hurtigfiks:</h3>';
+                $message .= '<ol>';
+                $message .= '<li><a href="' . admin_url('admin.php?page=feide-wp-auth&tab=settings') . '">Gå til innstillinger</a> og aktiver "Gi alle autentiserte FEIDE-brukere tilgang"</li>';
+                $message .= '<li>Eller <a href="' . admin_url('admin.php?page=feide-wp-auth&tab=debug') . '">gå til Debug-fanen</a> for fullstendig analyse</li>';
+                $message .= '</ol>';
+
+                $message .= '<details open><summary><strong>Fullstendig debug-informasjon</strong></summary>';
+                $message .= '<pre style="background: #f5f5f5; padding: 15px; overflow: auto;">' . esc_html(print_r($debug_info, true)) . '</pre>';
                 $message .= '</details>';
-                wp_die($message);
+
+                wp_die($message, 'Tilgang nektet - Debug', array('response' => 403));
             } else {
                 wp_die('Du har ikke tilgang til dette systemet. Kontakt administrator om du mener dette er feil.');
             }
