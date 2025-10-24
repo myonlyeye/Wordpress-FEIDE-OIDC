@@ -98,6 +98,14 @@ class Feide_Authenticator {
         // Kombiner bruker- og gruppeinformasjon
         $all_attributes = array_merge($user_info, array('groups' => $group_info));
 
+        // Lagre attributter for debugging (alltid, ikke bare ved feil)
+        set_transient('feide_last_attributes', array(
+            'user_info' => $user_info,
+            'group_info' => $group_info,
+            'all_attributes' => $all_attributes,
+            'timestamp' => current_time('mysql')
+        ), 3600);
+
         // Hvis dette er test-modus, lagre resultatene og redirect til admin
         if ($is_test_mode) {
             $test_result = array(
@@ -332,6 +340,7 @@ class Feide_Authenticator {
         }
 
         $results = array();
+        $debug_comparisons = array();
 
         foreach ($criteria as $criterion) {
             $attribute_path = isset($criterion['attribute']) ? $criterion['attribute'] : '';
@@ -340,8 +349,22 @@ class Feide_Authenticator {
 
             $actual_value = $this->get_nested_attribute($attributes, $attribute_path);
 
-            $results[] = $this->compare_values($actual_value, $expected_value, $comparison);
+            $result = $this->compare_values($actual_value, $expected_value, $comparison);
+            $results[] = $result;
+
+            // Lagre debug-info for hver sammenligning
+            $debug_comparisons[] = array(
+                'attribute_path' => $attribute_path,
+                'actual_value' => $actual_value,
+                'actual_type' => gettype($actual_value),
+                'expected_value' => $expected_value,
+                'comparison' => $comparison,
+                'result' => $result ? 'MATCH' : 'NO MATCH'
+            );
         }
+
+        // Lagre debug-info for siste kriterium-sjekk
+        set_transient('feide_last_criteria_check', $debug_comparisons, 3600);
 
         if ($operator === 'OR') {
             return in_array(true, $results, true);
@@ -374,24 +397,70 @@ class Feide_Authenticator {
      * Sammenlign verdier
      */
     private function compare_values($actual, $expected, $comparison) {
-        if (is_array($actual)) {
-            // Hvis actual er array, sjekk om expected finnes i arrayet
-            return in_array($expected, $actual, true);
+        // Normaliser verdier: trim whitespace og konverter til streng for sammenligning
+        if (is_string($actual)) {
+            $actual = trim($actual);
         }
+        if (is_string($expected)) {
+            $expected = trim($expected);
+        }
+
+        // Hvis actual er array, ekstraher enkeltverdi hvis arrayet kun har ett element
+        if (is_array($actual)) {
+            // Hvis array har ett element, bruk det elementet
+            if (count($actual) === 1) {
+                $actual = reset($actual);
+                if (is_string($actual)) {
+                    $actual = trim($actual);
+                }
+            } else {
+                // Hvis array har flere elementer, sjekk om expected finnes i arrayet
+                // Prøv både strict og non-strict comparison
+                if (in_array($expected, $actual, true)) {
+                    return true;
+                }
+                // Trim alle verdier i array og sjekk igjen
+                $trimmed_array = array_map('trim', $actual);
+                return in_array($expected, $trimmed_array, false);
+            }
+        }
+
+        // Konverter til string for sammenligning hvis nødvendig
+        $actual_str = is_scalar($actual) ? (string)$actual : '';
+        $expected_str = is_scalar($expected) ? (string)$expected : '';
 
         switch ($comparison) {
             case 'equals':
-                return $actual === $expected;
+                // Prøv først strict comparison, deretter case-insensitive
+                if ($actual_str === $expected_str) {
+                    return true;
+                }
+                return strcasecmp($actual_str, $expected_str) === 0;
+
             case 'contains':
-                return is_string($actual) && strpos($actual, $expected) !== false;
+                return stripos($actual_str, $expected_str) !== false;
+
             case 'starts_with':
-                return is_string($actual) && strpos($actual, $expected) === 0;
+                return stripos($actual_str, $expected_str) === 0;
+
             case 'ends_with':
-                return is_string($actual) && substr($actual, -strlen($expected)) === $expected;
+                $len = strlen($expected_str);
+                if ($len === 0) {
+                    return true;
+                }
+                return strcasecmp(substr($actual_str, -$len), $expected_str) === 0;
+
             case 'not_equals':
-                return $actual !== $expected;
+                if ($actual_str === $expected_str) {
+                    return false;
+                }
+                return strcasecmp($actual_str, $expected_str) !== 0;
+
             default:
-                return $actual === $expected;
+                if ($actual_str === $expected_str) {
+                    return true;
+                }
+                return strcasecmp($actual_str, $expected_str) === 0;
         }
     }
 

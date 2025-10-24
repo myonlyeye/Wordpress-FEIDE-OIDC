@@ -730,6 +730,69 @@ class Feide_WP_Auth_Admin {
         <h2>Debug-informasjon</h2>
         <p>Denne fanen viser alle lagrede innstillinger og siste feilmeldinger. Dette er nyttig for å feilsøke tilgangsproblemer.</p>
 
+        <?php
+        $last_attributes = get_transient('feide_last_attributes');
+        if ($last_attributes):
+        ?>
+        <h3>Siste attributter mottatt fra FEIDE</h3>
+        <div style="background: #d1ecf1; padding: 15px; border: 1px solid #0c5460; margin-bottom: 20px;">
+            <p><strong>Tidspunkt:</strong> <?php echo esc_html($last_attributes['timestamp']); ?></p>
+            <p><strong>Bruk denne informasjonen til å konfigurere attributt-mapping og rolle-regler!</strong></p>
+
+            <h4>User Info (fra UserInfo endpoint):</h4>
+            <div style="background: #fff; padding: 10px; border: 1px solid #ddd; overflow-x: auto;">
+                <pre><?php echo esc_html(print_r($last_attributes['user_info'], true)); ?></pre>
+            </div>
+
+            <?php if (!empty($last_attributes['group_info'])): ?>
+            <h4>Group Info (fra Groups endpoint):</h4>
+            <div style="background: #fff; padding: 10px; border: 1px solid #ddd; overflow-x: auto;">
+                <pre><?php echo esc_html(print_r($last_attributes['group_info'], true)); ?></pre>
+            </div>
+            <?php endif; ?>
+
+            <h4>All Attributes (kombinert data brukt i rolle-sjekk):</h4>
+            <div style="background: #fff; padding: 10px; border: 1px solid #ddd; overflow-x: auto;">
+                <pre><?php echo esc_html(print_r($last_attributes['all_attributes'], true)); ?></pre>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <?php
+        $last_criteria_check = get_transient('feide_last_criteria_check');
+        if ($last_criteria_check):
+        ?>
+        <h3>Siste kriterium-sjekk (detaljert)</h3>
+        <div style="background: #fff3cd; padding: 15px; border: 1px solid #ffc107; margin-bottom: 20px;">
+            <p><strong>Dette viser nøyaktig hvordan hver rolle-regel ble sjekket:</strong></p>
+            <table class="wp-list-table widefat fixed striped">
+                <thead>
+                    <tr>
+                        <th>Attributt</th>
+                        <th>Faktisk verdi</th>
+                        <th>Type</th>
+                        <th>Forventet verdi</th>
+                        <th>Sammenligning</th>
+                        <th>Resultat</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($last_criteria_check as $check): ?>
+                    <tr style="background: <?php echo $check['result'] === 'MATCH' ? '#d4edda' : '#f8d7da'; ?>">
+                        <td><code><?php echo esc_html($check['attribute_path']); ?></code></td>
+                        <td><code><?php echo esc_html(print_r($check['actual_value'], true)); ?></code></td>
+                        <td><?php echo esc_html($check['actual_type']); ?></td>
+                        <td><code><?php echo esc_html($check['expected_value']); ?></code></td>
+                        <td><?php echo esc_html($check['comparison']); ?></td>
+                        <td><strong><?php echo esc_html($check['result']); ?></strong></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+            <p><em>Grønn bakgrunn = match, rød bakgrunn = no match</em></p>
+        </div>
+        <?php endif; ?>
+
         <h3>Lagrede innstillinger</h3>
         <div style="background: #f5f5f5; padding: 15px; border: 1px solid #ddd; overflow-x: auto;">
             <pre><?php echo esc_html(print_r($settings, true)); ?></pre>
