@@ -228,6 +228,15 @@ Bidrag er velkommen! Send gjerne pull requests.
 
 ## Changelog
 
+### 1.1.0
+- Forbedret innloggingsknapp med ikon og bedre design
+- Valgbar plassering av innloggingsknapp (over eller under WordPress-innlogging)
+- Elegant skillestrek mellom FEIDE og WordPress innlogging
+- Forbedret test-side som viser attributt-stier som kan brukes direkte
+- Omfattende debug-verktøy med detaljert kriterium-sjekk
+- Forbedret attributt-sammenligning (case-insensitive, array-håndtering)
+- Logging av alle innloggingsforsøk for enklere feilsøking
+
 ### 1.0.0
 - Første versjon
 - OpenID Connect-integrasjon
