@@ -408,8 +408,13 @@ class Feide_WP_Auth_Admin {
     /**
      * Flate ut nested array til attributt-stier
      */
-    private function flatten_attributes($data, $prefix = '', &$result = array()) {
+    private function flatten_attributes($data, $prefix = '', &$result = array(), $skip_keys = array()) {
         foreach ($data as $key => $value) {
+            // Hopp over spesielle nøkler (f.eks. _meta)
+            if (in_array($key, $skip_keys)) {
+                continue;
+            }
+
             $full_key = $prefix ? $prefix . ':' . $key : $key;
 
             if (is_array($value) && !empty($value)) {
@@ -418,7 +423,7 @@ class Feide_WP_Auth_Admin {
                     // Numerisk array - vis hvert element
                     foreach ($value as $index => $item) {
                         if (is_array($item)) {
-                            $this->flatten_attributes($item, $full_key . ':' . $index, $result);
+                            $this->flatten_attributes($item, $full_key . ':' . $index, $result, $skip_keys);
                         } else {
                             $result[] = array(
                                 'path' => $full_key . ':' . $index,
@@ -429,7 +434,7 @@ class Feide_WP_Auth_Admin {
                     }
                 } else {
                     // Assosiativt array - fortsett å flate ut
-                    $this->flatten_attributes($value, $full_key, $result);
+                    $this->flatten_attributes($value, $full_key, $result, $skip_keys);
                 }
             } else {
                 // Enkeltverdi
@@ -448,8 +453,11 @@ class Feide_WP_Auth_Admin {
      * Render attributter som flat tabell med stier
      */
     private function render_flat_attributes_table($data) {
+        // Ekstraher token-info hvis den finnes
+        $token_info = isset($data['_meta']) ? $data['_meta'] : null;
+
         $flattened = array();
-        $this->flatten_attributes($data, '', $flattened);
+        $this->flatten_attributes($data, '', $flattened, array('_meta'));
 
         if (empty($flattened)) {
             echo '<p>Ingen attributter mottatt.</p>';
@@ -486,6 +494,22 @@ class Feide_WP_Auth_Admin {
         <p>
             <em>Tips: Klikk på en attributt-sti for å markere hele teksten, deretter kopier den (Ctrl+C / Cmd+C).</em>
         </p>
+
+        <?php if ($token_info): ?>
+        <details style="margin-top: 15px;">
+            <summary><strong>Token-informasjon (ikke brukt i rolle-regler)</strong></summary>
+            <table class="wp-list-table widefat" style="margin-top: 10px;">
+                <tbody>
+                    <?php foreach ($token_info as $key => $value): ?>
+                    <tr>
+                        <td><strong><?php echo esc_html($key); ?></strong></td>
+                        <td><?php echo esc_html($value); ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </details>
+        <?php endif; ?>
         <?php
     }
 

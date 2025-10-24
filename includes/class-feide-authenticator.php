@@ -108,15 +108,14 @@ class Feide_Authenticator {
 
         // Hvis dette er test-modus, lagre resultatene og redirect til admin
         if ($is_test_mode) {
-            $test_result = array(
-                'user_info' => $user_info,
-                'group_info' => $group_info,
-                'token_info' => array(
+            // Lagre i samme struktur som brukes i rolle-sjekk
+            $test_result = array_merge($all_attributes, array(
+                '_meta' => array(
                     'token_type' => isset($token_data['token_type']) ? $token_data['token_type'] : '',
                     'expires_in' => isset($token_data['expires_in']) ? $token_data['expires_in'] : '',
                     'scope' => isset($token_data['scope']) ? $token_data['scope'] : ''
                 )
-            );
+            ));
 
             set_transient('feide_test_result', $test_result, 600);
             wp_redirect(admin_url('admin.php?page=feide-wp-auth&tab=test&test-success=1'));
