@@ -48,11 +48,11 @@ class Feide_WP_Auth {
             <span>eller</span>
         </div>
         <p class="feide-login-button">
-            <a href="<?php echo esc_url($auth_url); ?>" class="button button-primary button-large">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle; margin-right: 8px;">
-                    <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 5C13.66 5 15 6.34 15 8C15 9.66 13.66 11 12 11C10.34 11 9 9.66 9 8C9 6.34 10.34 5 12 5ZM12 19.2C9.5 19.2 7.29 17.92 6 15.98C6.03 13.99 10 12.9 12 12.9C13.99 12.9 17.97 13.99 18 15.98C16.71 17.92 14.5 19.2 12 19.2Z" fill="currentColor"/>
+            <a href="<?php echo esc_url($auth_url); ?>" class="button button-large feide-button">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="feide-icon">
+                    <path d="M12 3L1 9L5 11.18V17.18L12 21L19 17.18V11.18L21 10.09V17H23V9L12 3ZM18.82 9L12 12.72L5.18 9L12 5.28L18.82 9ZM17 15.99L12 18.72L7 15.99V12.27L12 15L17 12.27V15.99Z" fill="currentColor"/>
                 </svg>
-                Logg inn med FEIDE
+                <span>Logg inn med FEIDE</span>
             </a>
         </p>
         <?php
@@ -68,7 +68,8 @@ class Feide_WP_Auth {
             .feide-separator {
                 position: relative;
                 text-align: center;
-                margin: 20px 0 16px 0;
+                margin: 24px 0 20px 0;
+                overflow: hidden;
             }
 
             .feide-separator::before {
@@ -78,15 +79,18 @@ class Feide_WP_Auth {
                 right: 0;
                 top: 50%;
                 height: 1px;
-                background: #dcdcde;
+                background: linear-gradient(to right, transparent 0%, #dcdcde 10%, #dcdcde 90%, transparent 100%);
             }
 
             .feide-separator span {
                 position: relative;
                 background: #fff;
-                padding: 0 12px;
+                padding: 0 16px;
                 color: #646970;
                 font-size: 13px;
+                font-weight: 500;
+                letter-spacing: 0.3px;
+                text-transform: lowercase;
             }
 
             /* FEIDE innloggingsknapp */
@@ -94,29 +98,114 @@ class Feide_WP_Auth {
                 margin: 0 0 16px 0;
             }
 
-            .feide-login-button .button {
+            .feide-button {
                 width: 100%;
                 height: auto;
-                padding: 8px;
-                background: #0066cc;
-                border-color: #0066cc;
-                text-shadow: none;
-                box-shadow: none;
-                font-size: 14px;
-                display: flex;
+                padding: 12px 16px !important;
+                background: linear-gradient(135deg, #E84E0F 0%, #D63D00 100%) !important;
+                border: none !important;
+                border-radius: 4px !important;
+                text-shadow: none !important;
+                box-shadow: 0 2px 4px rgba(232, 78, 15, 0.2), 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+                font-size: 15px !important;
+                font-weight: 600 !important;
+                letter-spacing: 0.3px;
+                color: #fff !important;
+                text-decoration: none !important;
+                display: flex !important;
                 align-items: center;
                 justify-content: center;
-                transition: all 0.15s ease;
+                gap: 10px;
+                cursor: pointer;
+                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                position: relative;
+                overflow: hidden;
             }
 
-            .feide-login-button .button:hover,
-            .feide-login-button .button:focus {
-                background: #0055aa;
-                border-color: #0055aa;
+            .feide-button::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 100%);
+                opacity: 0;
+                transition: opacity 0.2s ease;
             }
 
-            .feide-login-button .button svg {
+            .feide-button:hover::before,
+            .feide-button:focus::before {
+                opacity: 1;
+            }
+
+            .feide-button:hover,
+            .feide-button:focus {
+                background: linear-gradient(135deg, #D63D00 0%, #C23500 100%) !important;
+                box-shadow: 0 4px 8px rgba(232, 78, 15, 0.3), 0 2px 4px rgba(0, 0, 0, 0.15) !important;
+                transform: translateY(-1px);
+                color: #fff !important;
+            }
+
+            .feide-button:active {
+                transform: translateY(0);
+                box-shadow: 0 1px 2px rgba(232, 78, 15, 0.2), 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+            }
+
+            .feide-button:focus {
+                outline: 2px solid #E84E0F;
+                outline-offset: 2px;
+            }
+
+            .feide-icon {
                 flex-shrink: 0;
+                opacity: 0.95;
+                transition: transform 0.2s ease;
+            }
+
+            .feide-button:hover .feide-icon {
+                transform: scale(1.05);
+                opacity: 1;
+            }
+
+            .feide-button span {
+                position: relative;
+                z-index: 1;
+            }
+
+            /* Responsiv design */
+            @media (max-width: 400px) {
+                .feide-button {
+                    font-size: 14px !important;
+                    padding: 10px 12px !important;
+                }
+
+                .feide-icon {
+                    width: 18px;
+                    height: 18px;
+                }
+
+                .feide-separator span {
+                    font-size: 12px;
+                }
+            }
+
+            /* Tilgjengelighet - høykontrast modus */
+            @media (prefers-contrast: high) {
+                .feide-button {
+                    border: 2px solid #000 !important;
+                }
+
+                .feide-separator::before {
+                    background: #000;
+                }
+            }
+
+            /* Mørk modus støtte */
+            @media (prefers-color-scheme: dark) {
+                .feide-separator span {
+                    background: #1e1e1e;
+                }
             }
         </style>
         <?php
