@@ -371,9 +371,16 @@ class Feide_WP_Auth_Admin {
 
         <?php if ($test_result): ?>
             <h3>Mottatte attributter</h3>
+            <p><strong>Bruk attributt-stiene nedenfor direkte i rolle-regler!</strong> Kopier "Attributt-sti" til "Attributt"-feltet i rolle-reglene.</p>
+
             <div class="feide-test-results">
-                <?php $this->render_attributes_table($test_result); ?>
+                <?php $this->render_flat_attributes_table($test_result); ?>
             </div>
+
+            <details style="margin-top: 20px;">
+                <summary><strong>Vis fullstendig JSON-struktur</strong></summary>
+                <pre style="background: #f5f5f5; padding: 15px; overflow: auto; max-height: 600px;"><?php echo esc_html(json_encode($test_result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)); ?></pre>
+            </details>
             <?php delete_transient('feide_test_result'); ?>
         <?php endif; ?>
         <?php
@@ -399,37 +406,87 @@ class Feide_WP_Auth_Admin {
     }
 
     /**
-     * Render attributter som tabell
+     * Flate ut nested array til attributt-stier
      */
-    private function render_attributes_table($data, $prefix = '') {
-        if (!is_array($data)) {
-            echo '<p>' . esc_html($data) . '</p>';
-            return;
-        }
-
-        echo '<table class="wp-list-table widefat fixed striped">';
-        echo '<thead><tr><th>Attributt</th><th>Verdi</th></tr></thead>';
-        echo '<tbody>';
-
+    private function flatten_attributes($data, $prefix = '', &$result = array()) {
         foreach ($data as $key => $value) {
             $full_key = $prefix ? $prefix . ':' . $key : $key;
 
-            if (is_array($value)) {
-                echo '<tr>';
-                echo '<td><strong>' . esc_html($full_key) . '</strong></td>';
-                echo '<td>';
-                $this->render_attributes_table($value, $full_key);
-                echo '</td>';
-                echo '</tr>';
+            if (is_array($value) && !empty($value)) {
+                // Sjekk om dette er et numerisk array (liste) eller assosiativt array
+                if (array_keys($value) === range(0, count($value) - 1)) {
+                    // Numerisk array - vis hvert element
+                    foreach ($value as $index => $item) {
+                        if (is_array($item)) {
+                            $this->flatten_attributes($item, $full_key . ':' . $index, $result);
+                        } else {
+                            $result[] = array(
+                                'path' => $full_key . ':' . $index,
+                                'value' => $item,
+                                'type' => gettype($item)
+                            );
+                        }
+                    }
+                } else {
+                    // Assosiativt array - fortsett å flate ut
+                    $this->flatten_attributes($value, $full_key, $result);
+                }
             } else {
-                echo '<tr>';
-                echo '<td><code>' . esc_html($full_key) . '</code></td>';
-                echo '<td>' . esc_html($value) . '</td>';
-                echo '</tr>';
+                // Enkeltverdi
+                $result[] = array(
+                    'path' => $full_key,
+                    'value' => is_bool($value) ? ($value ? 'true' : 'false') : (empty($value) && $value !== '0' && $value !== 0 ? '(tom)' : $value),
+                    'type' => gettype($value)
+                );
             }
         }
 
-        echo '</tbody></table>';
+        return $result;
+    }
+
+    /**
+     * Render attributter som flat tabell med stier
+     */
+    private function render_flat_attributes_table($data) {
+        $flattened = array();
+        $this->flatten_attributes($data, '', $flattened);
+
+        if (empty($flattened)) {
+            echo '<p>Ingen attributter mottatt.</p>';
+            return;
+        }
+
+        ?>
+        <table class="wp-list-table widefat fixed striped">
+            <thead>
+                <tr>
+                    <th style="width: 40%;">Attributt-sti (bruk i rolle-regler)</th>
+                    <th style="width: 50%;">Verdi</th>
+                    <th style="width: 10%;">Type</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($flattened as $item): ?>
+                <tr>
+                    <td>
+                        <code style="background: #f0f0f1; padding: 3px 6px; border-radius: 3px; font-size: 13px; user-select: all;">
+                            <?php echo esc_html($item['path']); ?>
+                        </code>
+                    </td>
+                    <td style="word-break: break-word;">
+                        <?php echo esc_html($item['value']); ?>
+                    </td>
+                    <td>
+                        <small><?php echo esc_html($item['type']); ?></small>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+        <p>
+            <em>Tips: Klikk på en attributt-sti for å markere hele teksten, deretter kopier den (Ctrl+C / Cmd+C).</em>
+        </p>
+        <?php
     }
 
     /**

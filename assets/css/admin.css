@@ -5,15 +5,36 @@
     background: #fff;
     border: 1px solid #ccd0d4;
     padding: 20px;
+    overflow-x: auto;
 }
 
 .feide-test-results table {
     margin-top: 10px;
+    width: 100%;
+    table-layout: fixed;
 }
 
-.feide-test-results table table {
-    margin: 10px 0;
-    background: #f9f9f9;
+.feide-test-results table th,
+.feide-test-results table td {
+    padding: 12px;
+    vertical-align: top;
+}
+
+.feide-test-results table code {
+    word-break: break-all;
+    white-space: normal;
+    display: inline-block;
+    max-width: 100%;
+}
+
+/* Forbedret lesbarhet for attributt-stier */
+.feide-test-results code {
+    cursor: text;
+    user-select: all;
+}
+
+.feide-test-results code:hover {
+    background: #e0e0e0 !important;
 }
 
 .role-mapping-item {
