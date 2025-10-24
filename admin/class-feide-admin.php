@@ -87,11 +87,6 @@ class Feide_WP_Auth_Admin {
             $sanitized['default_role'] = sanitize_text_field($input['default_role']);
         }
 
-        // Login-knapp plassering
-        if (isset($input['login_button_position'])) {
-            $sanitized['login_button_position'] = sanitize_text_field($input['login_button_position']);
-        }
-
         // Attributt-mapping - kun oppdater hvis det finnes i input
         if (isset($input['attribute_mapping']) && is_array($input['attribute_mapping'])) {
             $sanitized['attribute_mapping'] = array();
@@ -334,21 +329,6 @@ class Feide_WP_Auth_Admin {
                         <?php endforeach; ?>
                     </select>
                     <p class="description">Standard rolle for nye brukere (brukes når "Gi alle tilgang" er aktivert eller ingen rolle-regler er definert)</p>
-                </td>
-            </tr>
-            <tr>
-                <th scope="row">
-                    <label for="login_button_position">Plassering av innloggingsknapp</label>
-                </th>
-                <td>
-                    <select id="login_button_position" name="feide_wp_auth_settings[login_button_position]">
-                        <?php
-                        $button_position = isset($settings['login_button_position']) ? $settings['login_button_position'] : 'below';
-                        ?>
-                        <option value="below" <?php selected($button_position, 'below'); ?>>Under WordPress-innlogging</option>
-                        <option value="above" <?php selected($button_position, 'above'); ?>>Over WordPress-innlogging</option>
-                    </select>
-                    <p class="description">Velg hvor "Logg inn med FEIDE"-knappen skal vises på innloggingssiden</p>
                 </td>
             </tr>
         </table>
