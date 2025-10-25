@@ -49,10 +49,22 @@ class Feide_WP_Auth_Admin {
         if (isset($input['client_id'])) {
             // Kun trim whitespace - ikke modifiser selve verdien
             $sanitized['client_id'] = trim($input['client_id']);
+
+            // Debug logging
+            if (WP_DEBUG) {
+                error_log('FEIDE Auth: Saving Client ID - Length: ' . strlen($sanitized['client_id']) . ', Value: ' . $sanitized['client_id']);
+            }
         }
         if (isset($input['client_secret'])) {
             // Kun trim whitespace - ikke modifiser selve verdien (kritisk for autentisering)
             $sanitized['client_secret'] = trim($input['client_secret']);
+
+            // Debug logging (vis bare lengde og første/siste tegn for sikkerhet)
+            if (WP_DEBUG) {
+                $secret_len = strlen($sanitized['client_secret']);
+                $secret_preview = $secret_len > 0 ? substr($sanitized['client_secret'], 0, 8) . '...' . substr($sanitized['client_secret'], -4) : 'EMPTY';
+                error_log('FEIDE Auth: Saving Client Secret - Length: ' . $secret_len . ', Preview: ' . $secret_preview);
+            }
         }
         if (isset($input['redirect_uri'])) {
             $sanitized['redirect_uri'] = esc_url_raw($input['redirect_uri']);
@@ -893,7 +905,45 @@ class Feide_WP_Auth_Admin {
         </div>
         <?php endif; ?>
 
-        <h3>Lagrede innstillinger</h3>
+        <h3>OAuth Client Credentials (verifisering)</h3>
+        <div style="background: #e7f3ff; padding: 15px; border: 1px solid #2271b1; margin-bottom: 20px;">
+            <p><strong>Bruk denne informasjonen til å verifisere at dine credentials er lagret riktig:</strong></p>
+            <table class="wp-list-table widefat">
+                <tbody>
+                    <tr>
+                        <td><strong>Client ID</strong></td>
+                        <td>
+                            <?php if (!empty($settings['client_id'])): ?>
+                                Lengde: <?php echo strlen($settings['client_id']); ?> tegn<br>
+                                Verdi: <code><?php echo esc_html($settings['client_id']); ?></code>
+                            <?php else: ?>
+                                <span style="color: #dc3232;">IKKE SATT</span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Client Secret</strong></td>
+                        <td>
+                            <?php if (!empty($settings['client_secret'])): ?>
+                                Lengde: <?php echo strlen($settings['client_secret']); ?> tegn<br>
+                                Preview: <code><?php echo esc_html(substr($settings['client_secret'], 0, 8) . '...' . substr($settings['client_secret'], -4)); ?></code>
+                            <?php else: ?>
+                                <span style="color: #dc3232;">IKKE SATT</span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <p><em><strong>Forventet format:</strong> Client ID og Secret skal begge være UUID-er på formatet xxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (36 tegn)</em></p>
+            <?php if (!empty($settings['client_id']) && strlen($settings['client_id']) !== 36): ?>
+                <p style="color: #dc3232;"><strong>⚠️ ADVARSEL:</strong> Client ID har ikke forventet lengde (36 tegn). Den kan være feil!</p>
+            <?php endif; ?>
+            <?php if (!empty($settings['client_secret']) && strlen($settings['client_secret']) !== 36): ?>
+                <p style="color: #dc3232;"><strong>⚠️ ADVARSEL:</strong> Client Secret har ikke forventet lengde (36 tegn). Den kan være feil!</p>
+            <?php endif; ?>
+        </div>
+
+        <h3>Lagrede innstillinger (komplett)</h3>
         <div style="background: #f5f5f5; padding: 15px; border: 1px solid #ddd; overflow-x: auto;">
             <pre><?php echo esc_html(print_r($settings, true)); ?></pre>
         </div>

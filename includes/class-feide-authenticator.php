@@ -208,7 +208,18 @@ class Feide_Authenticator {
      */
     private function exchange_code_for_token($code) {
         // FEIDE/Dataporten krever HTTP Basic Authentication
-        $auth = base64_encode($this->settings['client_id'] . ':' . $this->settings['client_secret']);
+        $client_id = $this->settings['client_id'];
+        $client_secret = $this->settings['client_secret'];
+
+        // Debug logging
+        if (WP_DEBUG) {
+            error_log('FEIDE Auth: Using Client ID - Length: ' . strlen($client_id) . ', Value: ' . $client_id);
+            $secret_len = strlen($client_secret);
+            $secret_preview = $secret_len > 0 ? substr($client_secret, 0, 8) . '...' . substr($client_secret, -4) : 'EMPTY';
+            error_log('FEIDE Auth: Using Client Secret - Length: ' . $secret_len . ', Preview: ' . $secret_preview);
+        }
+
+        $auth = base64_encode($client_id . ':' . $client_secret);
 
         $response = wp_remote_post($this->settings['token_endpoint'], array(
             'body' => array(
