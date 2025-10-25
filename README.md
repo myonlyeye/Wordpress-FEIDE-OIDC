@@ -327,6 +327,26 @@ Brukermetadata lagres per bruker:
 - `feide_attributes`: Alle FEIDE-attributter fra siste innlogging
 - `feide_last_login`: Tidspunkt for siste innlogging
 
+## Changelog
+
+For full versjonhistorikk og detaljerte endringer, se [CHANGELOG.md](CHANGELOG.md).
+
+**Siste versjoner:**
+- **v2.1.0** (2025-01-26) - Wildcard-støtte for attributt-matching
+- **v2.0.0** (2025-01-26) - Stor refaktorering: eksterne assets, cron cleanup, error logging
+- **v1.1.0** - Forbedret FEIDE-knapp design og plassering
+- **v1.0.0** - Første release
+
+## Credits
+
+**Skapt av:** Odin & Claude
+
+Denne pluginen er et samarbeid mellom:
+- **Odin** - Prosjektvisjon, krav, testing og domeneekspertise
+- **Claude** (Anthropic) - Kodeimplementering, arkitektur og dokumentasjon
+
+Et eksempel på hva menneskelig kreativitet og AI-kapasitet kan oppnå sammen! 🚀
+
 ## Lisens
 
 GPL v2 or later
@@ -340,21 +360,6 @@ https://github.com/myonlyeye/fida/issues
 
 Bidrag er velkommen! Send gjerne pull requests.
 
-## Changelog
+---
 
-### 1.1.0
-- Forbedret innloggingsknapp med ikon og bedre design
-- Valgbar plassering av innloggingsknapp (over eller under WordPress-innlogging)
-- Elegant skillestrek mellom FEIDE og WordPress innlogging
-- Forbedret test-side som viser attributt-stier som kan brukes direkte
-- Omfattende debug-verktøy med detaljert kriterium-sjekk
-- Forbedret attributt-sammenligning (case-insensitive, array-håndtering)
-- Logging av alle innloggingsforsøk for enklere feilsøking
-
-### 1.0.0
-- Første versjon
-- OpenID Connect-integrasjon
-- Attributt-mapping
-- Rolle-tildeling basert på attributter
-- Test-funksjonalitet
-- Automatisk brukeroppretting
+*Made with ❤️ by Odin & Claude*

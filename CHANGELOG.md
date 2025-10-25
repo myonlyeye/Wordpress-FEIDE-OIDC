@@ -5,6 +5,16 @@ All notable changes to the FEIDE WordPress Authentication plugin will be documen
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Credits
+
+**Created by:** Odin & Claude
+
+This plugin is a collaboration between:
+- **Odin** - Project vision, requirements, testing, and domain expertise
+- **Claude** (Anthropic) - Code implementation, architecture, and documentation
+
+A testament to what human creativity and AI capabilities can achieve together! 🚀
+
 ## [2.1.0] - 2025-01-26
 
 ### Added
@@ -128,8 +138,36 @@ Features planned for future releases:
 
 ## Version History Summary
 
-- **2.0.0** - Major refactoring: external assets, cron cleanup, uninstall script, security improvements
-- **1.1.0** - Improved button design and positioning
-- **1.0.0** - Initial release with full FEIDE authentication
+| Version | Date | Highlights |
+|---------|------|------------|
+| **2.1.0** | 2025-01-26 | 🌟 Wildcard support for attribute matching |
+| **2.0.0** | 2025-01-26 | 🔄 Major refactoring: external assets, cron cleanup, error logging |
+| **1.1.0** | 2025-01-XX | 🎨 Improved button design with FEIDE branding |
+| **1.0.0** | 2025-01-XX | 🎉 Initial release with full FEIDE authentication |
+
+## Upgrade Path
+
+### From 1.x to 2.x
+- No breaking changes - fully backward compatible
+- New features are opt-in
+- Existing role rules continue to work
+- Wildcards are optional enhancement
+
+### From 2.0 to 2.1
+- Seamless upgrade - no action required
+- Start using wildcards in new role rules
+- Old rules without wildcards still work perfectly
+
+## Statistics
+
+- **Total commits:** 10+
+- **Lines of code:** ~3000+
+- **Files:** 9 core files + assets
+- **Test coverage:** Manual testing with FEIDE Dataporten
+- **Documentation:** Comprehensive README + CHANGELOG
 
 For upgrade instructions and breaking changes, see [README.md](README.md).
+
+---
+
+*Made with ❤️ by Odin & Claude*

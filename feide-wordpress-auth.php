@@ -4,12 +4,15 @@
  * Plugin URI: https://github.com/myonlyeye/fida
  * Description: Autentiserer WordPress-brukere mot FEIDE via OpenID Connect/OAuth 2.0
  * Version: 2.1.0
- * Author: Your Name
+ * Author: Odin & Claude
  * Author URI: https://github.com/myonlyeye
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: feide-wp-auth
  * Domain Path: /languages
+ *
+ * Created by Odin with assistance from Claude (Anthropic)
+ * A collaboration between human creativity and AI capabilities
  */
 
 // Forhindre direkte tilgang
