@@ -47,10 +47,12 @@ class Feide_WP_Auth_Admin {
 
         // OpenID Connect innstillinger - kun oppdater hvis de finnes i input
         if (isset($input['client_id'])) {
-            $sanitized['client_id'] = sanitize_text_field($input['client_id']);
+            // Kun trim whitespace - ikke modifiser selve verdien
+            $sanitized['client_id'] = trim($input['client_id']);
         }
         if (isset($input['client_secret'])) {
-            $sanitized['client_secret'] = sanitize_text_field($input['client_secret']);
+            // Kun trim whitespace - ikke modifiser selve verdien (kritisk for autentisering)
+            $sanitized['client_secret'] = trim($input['client_secret']);
         }
         if (isset($input['redirect_uri'])) {
             $sanitized['redirect_uri'] = esc_url_raw($input['redirect_uri']);
