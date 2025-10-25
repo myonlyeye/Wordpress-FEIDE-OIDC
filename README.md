@@ -135,6 +135,27 @@ For å tillate flere attributter som gir samme rolle:
 - **Operator**: OR (minst ett kriterium må være oppfylt)
 - Legg til flere kriterier med "Legg til kriterium"
 
+#### Eksempel 4: Wildcard for gruppemedlemskap
+Bruk wildcard (`*`) for å sjekke medlemskap i grupper uten å kjenne eksakt indeks:
+- **WordPress-rolle**: Redaktør
+- **Operator**: AND
+- **Kriterier**:
+  - Attributt: `groups:*:id`
+  - Sammenligning: Er lik
+  - Verdi: `fc:adhoc:abc-123-def-456`
+
+Dette matcher hvis brukeren er medlem i EN ELLER FLERE grupper der minst én gruppe har `id = fc:adhoc:abc-123-def-456`.
+
+**Andre wildcard-eksempler:**
+- `groups:*:displayName` - Match gruppenavn (f.eks. "Lærere", "Administrasjon")
+- `groups:*:membership:basic` - Match medlemskapstype
+- `user:orgs:*:role` - Match rolle i hvilken som helst organisasjon
+
+**Fordeler med wildcards:**
+- ✅ Slipper å lage separate regler for hver gruppeindeks
+- ✅ Fungerer automatisk selv om antall grupper endres
+- ✅ Enklere vedlikehold
+
 ## Bruk
 
 ### For sluttbrukere

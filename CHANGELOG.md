@@ -5,6 +5,27 @@ All notable changes to the FEIDE WordPress Authentication plugin will be documen
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2025-01-26
+
+### Added
+- **Wildcard support in attribute paths** - Use `*` to match all elements in an array
+  - Example: `groups:*:id` matches if ANY group has the specified ID
+  - Example: `groups:*:displayName` matches if ANY group has the specified name
+  - Works with all comparison operators (equals, contains, starts_with, ends_with, not_equals)
+  - Eliminates need for multiple identical rules with different array indices
+- **Interactive help in admin panel** - New info box in Role Assignment tab explaining wildcard usage with examples
+- **Enhanced placeholder text** - Input fields now show wildcard examples
+- **Tooltip documentation** - Hover tooltips on attribute input fields explain wildcard syntax
+
+### Changed
+- `get_nested_attribute()` - Now recursively processes wildcards and returns array of matching values
+- `compare_values()` - Enhanced to handle arrays from wildcard matching (returns true if ANY value matches)
+
+### Improved
+- Role criteria matching is now more flexible and powerful
+- Reduced need for duplicate role rules
+- Better support for dynamic group memberships
+
 ## [2.0.0] - 2025-01-26
 
 ### Added

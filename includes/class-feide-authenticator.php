@@ -392,13 +392,56 @@ class Feide_Authenticator {
     }
 
     /**
-     * Hent nested attributt-verdi
+     * Hent nested attributt-verdi med wildcard-støtte
+     *
+     * Støtter wildcard (*) for å matche alle elementer i et array.
+     * Eksempel: "groups:*:id" vil returnere alle id-verdier fra alle grupper
+     *
+     * @param array|object $data Data å søke i
+     * @param string $path Path med kolon-separerte nøkler (kan inneholde *)
+     * @return mixed|array Verdi eller array av verdier hvis wildcard brukes
      */
     private function get_nested_attribute($data, $path) {
         $keys = explode(':', $path);
         $value = $data;
 
         foreach ($keys as $key) {
+            // Sjekk for wildcard
+            if ($key === '*') {
+                if (!is_array($value)) {
+                    return null;
+                }
+
+                // Samle verdier fra alle elementer i arrayet
+                $collected_values = array();
+
+                foreach ($value as $item) {
+                    // Hvis det er flere keys etter wildcard, fortsett navigeringen
+                    $remaining_keys = array_slice($keys, array_search($key, $keys) + 1);
+
+                    if (empty($remaining_keys)) {
+                        // Ingen flere keys, returner elementet direkte
+                        $collected_values[] = $item;
+                    } else {
+                        // Fortsett å navigere med resterende keys
+                        $remaining_path = implode(':', $remaining_keys);
+                        $nested_value = $this->get_nested_attribute($item, $remaining_path);
+
+                        if ($nested_value !== null) {
+                            // Hvis nested value også er en array (fra nested wildcard), flatten den
+                            if (is_array($nested_value) && $this->is_indexed_array($nested_value)) {
+                                $collected_values = array_merge($collected_values, $nested_value);
+                            } else {
+                                $collected_values[] = $nested_value;
+                            }
+                        }
+                    }
+                }
+
+                return !empty($collected_values) ? $collected_values : null;
+            }
+
+            // Normal navigering (ingen wildcard)
             if (is_array($value) && isset($value[$key])) {
                 $value = $value[$key];
             } elseif (is_object($value) && isset($value->$key)) {
@@ -412,7 +455,28 @@ class Feide_Authenticator {
     }
 
     /**
-     * Sammenlign verdier
+     * Sjekk om et array er indeksert (numerisk) i stedet for assosiativt
+     *
+     * @param array $arr Array å sjekke
+     * @return bool True hvis array er indeksert
+     */
+    private function is_indexed_array($arr) {
+        if (!is_array($arr)) {
+            return false;
+        }
+        return array_keys($arr) === range(0, count($arr) - 1);
+    }
+
+    /**
+     * Sammenlign verdier med støtte for wildcard-resultater
+     *
+     * Når wildcard brukes, kan $actual være en array av verdier.
+     * Returnerer true hvis MINST ÉN verdi i arrayet matcher.
+     *
+     * @param mixed $actual Faktisk verdi (kan være array fra wildcard)
+     * @param mixed $expected Forventet verdi
+     * @param string $comparison Sammenligningsoperatør
+     * @return bool True hvis match
      */
     private function compare_values($actual, $expected, $comparison) {
         // Normaliser verdier: trim whitespace og konverter til streng for sammenligning
@@ -423,23 +487,25 @@ class Feide_Authenticator {
             $expected = trim($expected);
         }
 
-        // Hvis actual er array, ekstraher enkeltverdi hvis arrayet kun har ett element
+        // Hvis actual er array (fra wildcard eller multi-value attributt)
         if (is_array($actual)) {
-            // Hvis array har ett element, bruk det elementet
+            // Hvis array har ett element, bruk det elementet direkte
             if (count($actual) === 1) {
                 $actual = reset($actual);
                 if (is_string($actual)) {
                     $actual = trim($actual);
                 }
             } else {
-                // Hvis array har flere elementer, sjekk om expected finnes i arrayet
-                // Prøv både strict og non-strict comparison
-                if (in_array($expected, $actual, true)) {
-                    return true;
+                // Array har flere elementer - sjekk om MINST ÉN matcher
+                // Dette er spesielt viktig for wildcard-resultater (f.eks. groups:*:id)
+                foreach ($actual as $value) {
+                    // Rekursivt kall for å sjekke hver verdi mot forventet verdi
+                    if ($this->compare_values($value, $expected, $comparison)) {
+                        return true; // Minst én verdi matcher!
+                    }
                 }
-                // Trim alle verdier i array og sjekk igjen
-                $trimmed_array = array_map('trim', $actual);
-                return in_array($expected, $trimmed_array, false);
+                // Ingen verdier matchet
+                return false;
             }
         }
 

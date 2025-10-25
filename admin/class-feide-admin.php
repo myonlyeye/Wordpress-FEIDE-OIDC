@@ -597,6 +597,18 @@ class Feide_WP_Auth_Admin {
         <h2>Rolletildeling basert på FEIDE-attributter</h2>
         <p>Definer kriterier for hvilke brukere som skal få tilgang og hvilke roller de skal tildeles.</p>
 
+        <div class="notice notice-info" style="padding: 10px; margin: 15px 0;">
+            <p><strong>💡 Tips: Wildcard-støtte</strong></p>
+            <p>Du kan bruke <code>*</code> som wildcard i attributt-stier for å matche alle elementer i et array.</p>
+            <p><strong>Eksempler:</strong></p>
+            <ul style="margin-left: 20px;">
+                <li><code>groups:*:id</code> - Matcher hvis MINST ÉN gruppe har angitt ID</li>
+                <li><code>groups:*:displayName</code> - Matcher hvis MINST ÉN gruppe har angitt navn</li>
+                <li><code>user:orgs:*:role</code> - Matcher hvis brukeren har angitt rolle i MINST ÉN organisasjon</li>
+            </ul>
+            <p><em>Dette gjør det enkelt å sjekke medlemskap i grupper uten å vite eksakt indeks!</em></p>
+        </div>
+
         <div id="role-mappings-container">
             <?php
             if (empty($role_mappings)) {
@@ -658,9 +670,10 @@ class Feide_WP_Auth_Admin {
                     <div class="criterion-item">
                         <input type="text"
                                name="feide_wp_auth_settings[role_mappings][<?php echo $index; ?>][criteria][<?php echo $crit_index; ?>][attribute]"
-                               placeholder="Attributt (f.eks. eduPersonOrgUnitDN:norEduOrgUnitUniqueIdentifier)"
+                               placeholder="Attributt (f.eks. groups:*:id eller user:email)"
                                value="<?php echo esc_attr($criterion['attribute']); ?>"
-                               class="regular-text">
+                               class="regular-text"
+                               title="Bruk * som wildcard for å matche alle elementer i et array. Eksempel: groups:*:id matcher id fra alle grupper">
 
                         <select name="feide_wp_auth_settings[role_mappings][<?php echo $index; ?>][criteria][<?php echo $crit_index; ?>][comparison]">
                             <option value="equals" <?php selected($criterion['comparison'], 'equals'); ?>>Er lik</option>
@@ -737,7 +750,9 @@ class Feide_WP_Auth_Admin {
                         <div class="criteria-container" data-mapping-index="${mappingIndex}">
                             <div class="criterion-item">
                                 <input type="text" name="feide_wp_auth_settings[role_mappings][${mappingIndex}][criteria][0][attribute]"
-                                       placeholder="Attributt" class="regular-text">
+                                       placeholder="Attributt (f.eks. groups:*:id eller user:email)"
+                                       title="Bruk * som wildcard for å matche alle elementer i et array"
+                                       class="regular-text">
                                 <select name="feide_wp_auth_settings[role_mappings][${mappingIndex}][criteria][0][comparison]">
                                     <option value="equals">Er lik</option>
                                     <option value="contains">Inneholder</option>
@@ -773,7 +788,9 @@ class Feide_WP_Auth_Admin {
                 var newCriterion = `
                     <div class="criterion-item">
                         <input type="text" name="feide_wp_auth_settings[role_mappings][${mappingIdx}][criteria][${criterionCount}][attribute]"
-                               placeholder="Attributt" class="regular-text">
+                               placeholder="Attributt (f.eks. groups:*:id eller user:email)"
+                               title="Bruk * som wildcard for å matche alle elementer i et array"
+                               class="regular-text">
                         <select name="feide_wp_auth_settings[role_mappings][${mappingIdx}][criteria][${criterionCount}][comparison]">
                             <option value="equals">Er lik</option>
                             <option value="contains">Inneholder</option>

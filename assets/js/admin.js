@@ -142,7 +142,8 @@
             <div class="criterion-item">
                 <input type="text"
                        name="feide_wp_auth_settings[role_mappings][${mappingIndex}][criteria][${criterionIndex}][attribute]"
-                       placeholder="Attributt (f.eks. eduPersonOrgUnitDN:norEduOrgUnitUniqueIdentifier)"
+                       placeholder="Attributt (f.eks. groups:*:id eller user:email)"
+                       title="Bruk * som wildcard for å matche alle elementer i et array"
                        class="regular-text">
                 <select name="feide_wp_auth_settings[role_mappings][${mappingIndex}][criteria][${criterionIndex}][comparison]">
                     <option value="equals">Er lik</option>
