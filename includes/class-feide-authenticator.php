@@ -69,6 +69,9 @@ class Feide_Authenticator {
         $token_data = $this->exchange_code_for_token($code);
 
         if (is_wp_error($token_data)) {
+            if (WP_DEBUG) {
+                error_log('FEIDE Auth: Token exchange failed - ' . $token_data->get_error_message());
+            }
             if ($is_test_mode) {
                 set_transient('feide_test_error', $token_data->get_error_message(), 60);
                 wp_redirect(admin_url('admin.php?page=feide-wp-auth&tab=test'));
@@ -81,6 +84,9 @@ class Feide_Authenticator {
         $user_info = $this->get_user_info($token_data['access_token']);
 
         if (is_wp_error($user_info)) {
+            if (WP_DEBUG) {
+                error_log('FEIDE Auth: Failed to get user info - ' . $user_info->get_error_message());
+            }
             if ($is_test_mode) {
                 set_transient('feide_test_error', $user_info->get_error_message(), 60);
                 wp_redirect(admin_url('admin.php?page=feide-wp-auth&tab=test'));
@@ -126,6 +132,10 @@ class Feide_Authenticator {
         $role_check = $this->check_role_criteria($all_attributes);
 
         if (!$role_check['allowed']) {
+            if (WP_DEBUG) {
+                error_log('FEIDE Auth: Access denied for user (sub: ' . ($user_info['sub'] ?? 'unknown') . ') - no matching role criteria');
+            }
+
             // Lagre omfattende debug-info
             $debug_info = array(
                 'attributes' => $all_attributes,
@@ -210,10 +220,14 @@ class Feide_Authenticator {
                 'Authorization' => 'Basic ' . $auth,
                 'Accept' => 'application/json',
                 'Content-Type' => 'application/x-www-form-urlencoded'
-            )
+            ),
+            'timeout' => 15
         ));
 
         if (is_wp_error($response)) {
+            if (WP_DEBUG) {
+                error_log('FEIDE Auth: HTTP error during token exchange - ' . $response->get_error_message());
+            }
             return $response;
         }
 
@@ -221,6 +235,9 @@ class Feide_Authenticator {
         $data = json_decode($body, true);
 
         if (!isset($data['access_token'])) {
+            if (WP_DEBUG) {
+                error_log('FEIDE Auth: No access token in response - ' . substr($body, 0, 200));
+            }
             return new WP_Error('token_error', 'Mottok ikke access token fra FEIDE. Respons: ' . $body);
         }
 
@@ -235,7 +252,8 @@ class Feide_Authenticator {
             'headers' => array(
                 'Authorization' => 'Bearer ' . $access_token,
                 'Accept' => 'application/json'
-            )
+            ),
+            'timeout' => 15
         ));
 
         if (is_wp_error($response)) {
@@ -264,7 +282,8 @@ class Feide_Authenticator {
             'headers' => array(
                 'Authorization' => 'Bearer ' . $access_token,
                 'Accept' => 'application/json'
-            )
+            ),
+            'timeout' => 15
         ));
 
         if (is_wp_error($response)) {
@@ -483,9 +502,54 @@ class Feide_Authenticator {
         // Sjekk om brukeren allerede eksisterer
         $user = get_user_by('login', $username);
 
-        if (!$user) {
-            // Sjekk om auto-oppretting er aktivert
+        if ($user) {
+            // Bruker eksisterer - oppdater informasjon fra FEIDE
+            $user_data = array(
+                'ID' => $user->ID
+            );
+
+            $email_attr = isset($attribute_mapping['email']) ? $attribute_mapping['email'] : 'email';
+            $email = $this->get_nested_attribute($attributes, $email_attr);
+            if ($email && is_email($email)) {
+                $user_data['user_email'] = sanitize_email($email);
+            }
+
+            if (isset($attribute_mapping['first_name'])) {
+                $first_name = $this->get_nested_attribute($attributes, $attribute_mapping['first_name']);
+                if ($first_name) {
+                    $user_data['first_name'] = sanitize_text_field($first_name);
+                }
+            }
+
+            if (isset($attribute_mapping['last_name'])) {
+                $last_name = $this->get_nested_attribute($attributes, $attribute_mapping['last_name']);
+                if ($last_name) {
+                    $user_data['last_name'] = sanitize_text_field($last_name);
+                }
+            }
+
+            if (isset($attribute_mapping['display_name'])) {
+                $display_name = $this->get_nested_attribute($attributes, $attribute_mapping['display_name']);
+                if ($display_name) {
+                    $user_data['display_name'] = sanitize_text_field($display_name);
+                }
+            }
+
+            // Oppdater bruker hvis vi har endringer
+            if (count($user_data) > 1) {
+                $result = wp_update_user($user_data);
+                if (is_wp_error($result)) {
+                    if (WP_DEBUG) {
+                        error_log('FEIDE Auth: Failed to update user ' . $username . ': ' . $result->get_error_message());
+                    }
+                }
+            }
+        } else {
+            // Bruker finnes ikke - sjekk om auto-oppretting er aktivert
             if (empty($this->settings['auto_create_users'])) {
+                if (WP_DEBUG) {
+                    error_log('FEIDE Auth: User ' . $username . ' not found and auto-create is disabled');
+                }
                 return new WP_Error('user_not_found', 'Brukeren finnes ikke og automatisk oppretting er deaktivert.');
             }
 
@@ -529,7 +593,14 @@ class Feide_Authenticator {
             $user_id = wp_insert_user($user_data);
 
             if (is_wp_error($user_id)) {
+                if (WP_DEBUG) {
+                    error_log('FEIDE Auth: Failed to create user ' . $username . ' - ' . $user_id->get_error_message());
+                }
                 return $user_id;
+            }
+
+            if (WP_DEBUG) {
+                error_log('FEIDE Auth: Created new user ' . $username . ' (ID: ' . $user_id . ')');
             }
 
             $user = get_user_by('ID', $user_id);

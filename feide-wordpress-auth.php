@@ -3,7 +3,7 @@
  * Plugin Name: FEIDE WordPress Authentication
  * Plugin URI: https://github.com/myonlyeye/fida
  * Description: Autentiserer WordPress-brukere mot FEIDE via OpenID Connect/OAuth 2.0
- * Version: 1.1.0
+ * Version: 2.0.0
  * Author: Your Name
  * Author URI: https://github.com/myonlyeye
  * License: GPL v2 or later
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Definer plugin-konstanter
-define('FEIDE_WP_AUTH_VERSION', '1.1.0');
+define('FEIDE_WP_AUTH_VERSION', '2.0.0');
 define('FEIDE_WP_AUTH_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('FEIDE_WP_AUTH_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('FEIDE_WP_AUTH_PLUGIN_FILE', __FILE__);
@@ -43,7 +43,6 @@ function feide_wp_auth_activate() {
         'auto_create_users' => true,
         'allow_all_authenticated' => false,
         'default_role' => 'subscriber',
-        'login_button_position' => 'below',
         'attribute_mapping' => array(
             'username' => 'sub',
             'email' => 'email',
@@ -51,10 +50,16 @@ function feide_wp_auth_activate() {
             'last_name' => 'family_name',
             'display_name' => 'name'
         ),
-        'role_mappings' => array()
+        'role_mappings' => array(),
+        'settings_version' => '2.0.0'
     );
 
     add_option('feide_wp_auth_settings', $default_options);
+
+    // Schedule transient cleanup (daily)
+    if (!wp_next_scheduled('feide_cleanup_old_transients')) {
+        wp_schedule_event(time(), 'daily', 'feide_cleanup_old_transients');
+    }
 
     // Flush rewrite rules
     flush_rewrite_rules();
@@ -65,6 +70,12 @@ register_activation_hook(__FILE__, 'feide_wp_auth_activate');
  * Deaktivering av plugin
  */
 function feide_wp_auth_deactivate() {
+    // Clear scheduled cleanup
+    $timestamp = wp_next_scheduled('feide_cleanup_old_transients');
+    if ($timestamp) {
+        wp_unschedule_event($timestamp, 'feide_cleanup_old_transients');
+    }
+
     flush_rewrite_rules();
 }
 register_deactivation_hook(__FILE__, 'feide_wp_auth_deactivate');
@@ -77,3 +88,39 @@ function feide_wp_auth_init() {
     $plugin->init();
 }
 add_action('plugins_loaded', 'feide_wp_auth_init');
+
+/**
+ * Cleanup old FEIDE transients (runs daily via cron)
+ */
+function feide_cleanup_old_transients() {
+    global $wpdb;
+
+    // Get all expired FEIDE transients
+    $wpdb->query(
+        $wpdb->prepare(
+            "DELETE FROM {$wpdb->options}
+            WHERE option_name LIKE %s
+            AND option_name NOT LIKE %s
+            AND option_value < %d",
+            '_transient_timeout_feide_%',
+            '_transient_timeout_feide_last_%', // Keep debug transients longer
+            time()
+        )
+    );
+
+    // Also delete the transient values for those expired timeouts
+    $wpdb->query(
+        $wpdb->prepare(
+            "DELETE FROM {$wpdb->options}
+            WHERE option_name LIKE %s
+            AND option_name NOT IN (
+                SELECT REPLACE(option_name, '_transient_timeout_', '_transient_')
+                FROM {$wpdb->options}
+                WHERE option_name LIKE %s
+            )",
+            '_transient_feide_%',
+            '_transient_timeout_feide_%'
+        )
+    );
+}
+add_action('feide_cleanup_old_transients', 'feide_cleanup_old_transients');

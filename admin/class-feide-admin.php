@@ -223,7 +223,7 @@ class Feide_WP_Auth_Admin {
                 </th>
                 <td>
                     <input type="password" id="client_secret" name="feide_wp_auth_settings[client_secret]"
-                           value="<?php echo esc_attr($settings['client_secret'] ?? ''); ?>" class="regular-text">
+                           value="<?php echo esc_attr($settings['client_secret'] ?? ''); ?>" class="regular-text" autocomplete="off">
                     <p class="description">Client Secret fra FEIDE</p>
                 </td>
             </tr>

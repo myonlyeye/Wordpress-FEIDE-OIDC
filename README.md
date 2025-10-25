@@ -159,42 +159,135 @@ Pluginen implementerer flere sikkerhetstiltak:
 
 ## Feilsøking
 
-### Problem: "Ugyldig state-parameter"
-- Dette kan skyldes at transienten har utløpt (10 minutter)
-- Prøv å logge inn på nytt
+### Vanlige problemer og løsninger
 
-### Problem: "Mottok ikke access token"
-- Sjekk at Client ID og Client Secret er riktige
-- Sjekk at Redirect URI er registrert hos FEIDE
-- Se på respons-meldingen for mer informasjon
+#### Problem: "Ugyldig state-parameter" eller "Mulig CSRF-angrep"
+**Årsak:** State-parameteren har utløpt (10 minutter) eller cookies er blokkert.
 
-### Problem: "Du har ikke tilgang til dette systemet"
-- Sjekk at rolle-kriteriene er riktig konfigurert
-- Bruk test-funksjonen for å se hvilke attributter brukeren har
-- Verifiser at attributt-navn og verdier matcher
+**Løsning:**
+1. Prøv å logge inn på nytt
+2. Sjekk at nettleseren tillater cookies
+3. Hvis problemet vedvarer, sjekk om server-tid er korrekt synkronisert
 
-### Problem: Brukeren opprettes ikke automatisk
-- Sjekk at "Automatisk oppretting av brukere" er aktivert
-- Sjekk at brukeren oppfyller minst én rolleregel
-- Se i WordPress debug-log for feilmeldinger
+#### Problem: "Mottok ikke access token fra FEIDE" eller "Wrong client credentials"
+**Årsak:** Feil Client ID/Secret eller redirect URI mismatch.
+
+**Løsning:**
+1. Verifiser at **Client ID** og **Client Secret** er korrekte i Settings-fanen
+2. Kontroller at **Redirect URI** i WordPress matcher **nøyaktig** det som er registrert hos FEIDE
+   - Standard: `https://dittdomene.no/wp-login.php?feide-auth=callback`
+   - Må være identisk (inkludert http vs https)
+3. Test med "Test FEIDE-innlogging" funksjonen først
+4. Sjekk debug-fanen for detaljert feilmelding
+
+#### Problem: "Du har ikke tilgang til dette systemet"
+**Årsak:** Brukeren oppfyller ikke noen av rolle-reglene som er konfigurert.
+
+**Løsning:**
+1. Gå til **Debug-fanen** og se "Siste kriterium-sjekk" - denne viser nøyaktig hvorfor tilgang ble nektet
+2. Sammenlign attributt-verdiene som ble mottatt med forventet verdi i rolle-regelen
+3. **Hurtigfiks:** Aktiver "Gi alle autentiserte FEIDE-brukere tilgang" i Settings-fanen
+4. Sjekk at attributt-stier er riktige (f.eks. `groups:0:id` ikke `group_info:0:id`)
+5. Husk at sammenligning er case-insensitive
+
+**Eksempel debug-output:**
+```
+Attributt: groups:0:displayName
+Faktisk verdi: "Lærere"
+Forventet verdi: "laerere"
+Resultat: MATCH (case-insensitive)
+```
+
+#### Problem: Brukeren opprettes ikke automatisk
+**Årsak:** Auto-create er deaktivert eller bruker oppfyller ikke kriterier.
+
+**Løsning:**
+1. Gå til **Settings → Automatisk oppretting av brukere** og aktiver
+2. Sjekk at brukeren oppfyller minst én rolleregel ELLER at "Gi alle tilgang" er aktivert
+3. Sjekk WordPress debug-log (`wp-content/debug.log`) for feilmeldinger
+4. Verifiser at e-postadresse mottas fra FEIDE (se Test-fanen)
+
+#### Problem: FEIDE-knappen vises ikke på innloggingssiden
+**Årsak:** Plugin ikke konfigurert eller JavaScript/CSS ikke lastet.
+
+**Løsning:**
+1. Sjekk at plugin er aktivert i WordPress
+2. Gå til Settings og fyll inn minst Client ID, Client Secret og Authorize Endpoint
+3. Tøm nettleser-cache og WordPress cache
+4. Sjekk at `assets/css/login.css` og `assets/js/login.js` eksisterer og er lesbare
+
+#### Problem: "Failed innlogging" eller timeout-feil
+**Årsak:** FEIDE-servere er trege eller utilgjengelige.
+
+**Løsning:**
+1. Alle API-kall har 15 sekunders timeout - vent og prøv igjen
+2. Sjekk at FEIDE Dataporten er tilgjengelig: https://status.dataporten.no/
+3. Kontakt FEIDE support hvis problemet vedvarer
+
+#### Problem: Attributter vises som NULL i test-resultater
+**Årsak:** Feil scope eller attributtet finnes ikke for brukeren.
+
+**Løsning:**
+1. Sjekk at scope inkluderer `openid profile email` (minimum)
+2. Noen attributter krever ekstra scopes (f.eks. `groups` for gruppeinformasjon)
+3. Test med en annen FEIDE-bruker som har attributtene
+
+### Debug-verktøy
+
+#### Aktivere WordPress debug-logging
+Legg til i `wp-config.php`:
+```php
+define('WP_DEBUG', true);
+define('WP_DEBUG_LOG', true);
+define('WP_DEBUG_DISPLAY', false);
+```
+
+Loggfil: `wp-content/debug.log`
+
+#### Bruke Test-funksjonen
+1. Gå til **Test Autentisering-fanen**
+2. Klikk "Test FEIDE-innlogging"
+3. Se alle attributter som mottas fra FEIDE
+4. Kopier attributt-stiene direkte til rolle-regler
+
+#### Bruke Debug-fanen
+Debug-fanen viser:
+- **Siste attributter mottatt fra FEIDE** - full JSON-dump
+- **Siste kriterium-sjekk** - detaljert sammenligning av hver regel
+- **Siste tilgangsnekting** - hvorfor en bruker ble nektet tilgang
+- **Lagrede innstillinger** - gjeldende konfigurering
+
+### Kontakt og support
+
+**For FEIDE-relaterte spørsmål:**
+- FEIDE kundesenter: https://www.feide.no/
+- FEIDE dokumentasjon: https://docs.feide.no/
+
+**For plugin-problemer:**
+- GitHub Issues: https://github.com/myonlyeye/fida/issues
+- Sjekk CHANGELOG.md for kjente problemer
 
 ## Tekniske detaljer
 
 ### Filstruktur
 ```
 feide-wordpress-auth/
-├── feide-wordpress-auth.php    # Hovedfil
+├── feide-wordpress-auth.php    # Hovedfil med activation/deactivation hooks
+├── uninstall.php                # Cleanup ved avinstallering
 ├── includes/
 │   ├── class-feide-wp-auth.php        # Hovedklasse
 │   └── class-feide-authenticator.php  # Autentiseringslogikk
 ├── admin/
-│   └── class-feide-admin.php          # Admin-panel
+│   └── class-feide-admin.php          # Admin-panel (5 faner)
 ├── assets/
 │   ├── css/
-│   │   └── admin.css                  # Admin-styling
+│   │   ├── admin.css                  # Admin-panel styling
+│   │   └── login.css                  # Innloggingsside styling
 │   └── js/
-│       └── admin.js                   # Admin-JavaScript
-└── README.md                           # Denne filen
+│       ├── admin.js                   # Admin-panel JavaScript
+│       └── login.js                   # Innloggingsside JavaScript
+├── README.md                           # Denne filen
+└── CHANGELOG.md                        # Versjonhistorikk
 ```
 
 ### Hooks og Filters
