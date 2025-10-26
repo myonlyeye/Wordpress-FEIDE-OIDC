@@ -67,6 +67,23 @@
                 alert('Du må ha minst ett kriterium per rolleregel.');
             }
         });
+
+        // Update heading when rule name changes
+        $(document).on('input', '.rule-name-input', function() {
+            var $input = $(this);
+            var $mappingItem = $input.closest('.role-mapping-item');
+            var $heading = $mappingItem.find('h3').first();
+            var index = $mappingItem.data('index');
+            var name = $input.val().trim();
+
+            // Update heading text (preserve the button)
+            var buttonHTML = $heading.find('.remove-role-mapping')[0].outerHTML;
+            if (name) {
+                $heading.html(name + ' ' + buttonHTML);
+            } else {
+                $heading.html('Rolleregel #' + (index + 1) + ' ' + buttonHTML);
+            }
+        });
     }
 
     /**
@@ -98,6 +115,16 @@
                     <button type="button" class="button remove-role-mapping">Fjern</button>
                 </h3>
                 <table class="form-table">
+                    <tr>
+                        <th scope="row">Navn på regel</th>
+                        <td>
+                            <input type="text" name="feide_wp_auth_settings[role_mappings][${index}][name]"
+                                   value=""
+                                   placeholder="F.eks. 'Studenter' eller 'Ansatte'"
+                                   class="regular-text rule-name-input">
+                            <p class="description">Gi regelen et beskrivende navn (valgfritt)</p>
+                        </td>
+                    </tr>
                     <tr>
                         <th scope="row">WordPress-rolle</th>
                         <td>
@@ -166,7 +193,18 @@
      */
     function updateMappingNumbers() {
         $('.role-mapping-item').each(function(index) {
-            $(this).find('h3').first().contents().first().replaceWith('Rolleregel #' + (index + 1) + ' ');
+            $(this).attr('data-index', index);
+            var $heading = $(this).find('h3').first();
+            var $nameInput = $(this).find('.rule-name-input');
+            var name = $nameInput.val().trim();
+            var buttonHTML = $heading.find('.remove-role-mapping')[0].outerHTML;
+
+            // Use custom name if exists, otherwise use number
+            if (name) {
+                $heading.html(name + ' ' + buttonHTML);
+            } else {
+                $heading.html('Rolleregel #' + (index + 1) + ' ' + buttonHTML);
+            }
         });
     }
 

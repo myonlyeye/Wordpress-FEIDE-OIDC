@@ -116,6 +116,7 @@ class Feide_WP_Auth_Admin {
                 if (isset($mapping['role']) && isset($mapping['criteria'])) {
                     $clean_mapping = array(
                         'role' => sanitize_text_field($mapping['role']),
+                        'name' => isset($mapping['name']) ? sanitize_text_field($mapping['name']) : '',
                         'operator' => isset($mapping['operator']) ? sanitize_text_field($mapping['operator']) : 'AND',
                         'criteria' => array()
                     );
@@ -640,11 +641,21 @@ class Feide_WP_Auth_Admin {
             foreach ($role_mappings as $index => $mapping):
             ?>
             <div class="role-mapping-item" data-index="<?php echo $index; ?>">
-                <h3>Rolleregel #<?php echo $index + 1; ?>
+                <h3><?php echo !empty($mapping['name']) ? esc_html($mapping['name']) : 'Rolleregel #' . ($index + 1); ?>
                     <button type="button" class="button remove-role-mapping">Fjern</button>
                 </h3>
 
                 <table class="form-table">
+                    <tr>
+                        <th scope="row">Navn på regel</th>
+                        <td>
+                            <input type="text" name="feide_wp_auth_settings[role_mappings][<?php echo $index; ?>][name]"
+                                   value="<?php echo esc_attr($mapping['name'] ?? ''); ?>"
+                                   placeholder="F.eks. 'Studenter' eller 'Ansatte'"
+                                   class="regular-text rule-name-input">
+                            <p class="description">Gi regelen et beskrivende navn (valgfritt)</p>
+                        </td>
+                    </tr>
                     <tr>
                         <th scope="row">WordPress-rolle</th>
                         <td>
@@ -722,115 +733,6 @@ class Feide_WP_Auth_Admin {
         </p>
 
         <?php submit_button('Lagre rolletildeling'); ?>
-
-        <script type="text/javascript">
-        jQuery(document).ready(function($) {
-            var mappingIndex = <?php echo count($role_mappings); ?>;
-
-            // Legg til ny rolleregel
-            $('#add-role-mapping').on('click', function() {
-                var newMapping = `
-                    <div class="role-mapping-item" data-index="${mappingIndex}">
-                        <h3>Rolleregel #${mappingIndex + 1}
-                            <button type="button" class="button remove-role-mapping">Fjern</button>
-                        </h3>
-                        <table class="form-table">
-                            <tr>
-                                <th scope="row">WordPress-rolle</th>
-                                <td>
-                                    <select name="feide_wp_auth_settings[role_mappings][${mappingIndex}][role]" class="regular-text">
-                                        <?php foreach ($wp_roles as $role_key => $role_name): ?>
-                                            <option value="<?php echo esc_attr($role_key); ?>"><?php echo esc_html($role_name); ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th scope="row">Kriterier-operator</th>
-                                <td>
-                                    <label>
-                                        <input type="radio" name="feide_wp_auth_settings[role_mappings][${mappingIndex}][operator]" value="AND" checked>
-                                        AND (alle kriterier må være oppfylt)
-                                    </label>
-                                    <br>
-                                    <label>
-                                        <input type="radio" name="feide_wp_auth_settings[role_mappings][${mappingIndex}][operator]" value="OR">
-                                        OR (minst ett kriterium må være oppfylt)
-                                    </label>
-                                </td>
-                            </tr>
-                        </table>
-                        <h4>Kriterier</h4>
-                        <div class="criteria-container" data-mapping-index="${mappingIndex}">
-                            <div class="criterion-item">
-                                <input type="text" name="feide_wp_auth_settings[role_mappings][${mappingIndex}][criteria][0][attribute]"
-                                       placeholder="Attributt (f.eks. groups:*:id eller user:email)"
-                                       title="Bruk * som wildcard for å matche alle elementer i et array"
-                                       class="regular-text">
-                                <select name="feide_wp_auth_settings[role_mappings][${mappingIndex}][criteria][0][comparison]">
-                                    <option value="equals">Er lik</option>
-                                    <option value="contains">Inneholder</option>
-                                    <option value="starts_with">Starter med</option>
-                                    <option value="ends_with">Slutter med</option>
-                                    <option value="not_equals">Er ikke lik</option>
-                                </select>
-                                <input type="text" name="feide_wp_auth_settings[role_mappings][${mappingIndex}][criteria][0][value]"
-                                       placeholder="Verdi" class="regular-text">
-                                <button type="button" class="button remove-criterion">Fjern</button>
-                            </div>
-                        </div>
-                        <p>
-                            <button type="button" class="button add-criterion" data-mapping-index="${mappingIndex}">Legg til kriterium</button>
-                        </p>
-                    </div>
-                `;
-                $('#role-mappings-container').append(newMapping);
-                mappingIndex++;
-            });
-
-            // Fjern rolleregel
-            $(document).on('click', '.remove-role-mapping', function() {
-                $(this).closest('.role-mapping-item').remove();
-            });
-
-            // Legg til kriterium
-            $(document).on('click', '.add-criterion', function() {
-                var mappingIdx = $(this).data('mapping-index');
-                var container = $(this).closest('.role-mapping-item').find('.criteria-container');
-                var criterionCount = container.find('.criterion-item').length;
-
-                var newCriterion = `
-                    <div class="criterion-item">
-                        <input type="text" name="feide_wp_auth_settings[role_mappings][${mappingIdx}][criteria][${criterionCount}][attribute]"
-                               placeholder="Attributt (f.eks. groups:*:id eller user:email)"
-                               title="Bruk * som wildcard for å matche alle elementer i et array"
-                               class="regular-text">
-                        <select name="feide_wp_auth_settings[role_mappings][${mappingIdx}][criteria][${criterionCount}][comparison]">
-                            <option value="equals">Er lik</option>
-                            <option value="contains">Inneholder</option>
-                            <option value="starts_with">Starter med</option>
-                            <option value="ends_with">Slutter med</option>
-                            <option value="not_equals">Er ikke lik</option>
-                        </select>
-                        <input type="text" name="feide_wp_auth_settings[role_mappings][${mappingIdx}][criteria][${criterionCount}][value]"
-                               placeholder="Verdi" class="regular-text">
-                        <button type="button" class="button remove-criterion">Fjern</button>
-                    </div>
-                `;
-                container.append(newCriterion);
-            });
-
-            // Fjern kriterium
-            $(document).on('click', '.remove-criterion', function() {
-                var container = $(this).closest('.criteria-container');
-                if (container.find('.criterion-item').length > 1) {
-                    $(this).closest('.criterion-item').remove();
-                } else {
-                    alert('Du må ha minst ett kriterium.');
-                }
-            });
-        });
-        </script>
         <?php
     }
 
