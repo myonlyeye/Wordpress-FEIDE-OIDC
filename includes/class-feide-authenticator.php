@@ -344,13 +344,36 @@ class Feide_Authenticator {
         }
 
         $matched_roles = array();
+        $all_debug_info = array(); // Lagre debug-info for alle regler
 
-        foreach ($valid_mappings as $mapping) {
-            $criteria_met = $this->check_criteria($attributes, $mapping['criteria'], $mapping['operator']);
+        foreach ($valid_mappings as $mapping_index => $mapping) {
+            $criteria_met = $this->check_criteria($attributes, $mapping['criteria'], $mapping['operator'], $mapping_index);
+
+            // Hent debug-info for denne regelen
+            $debug_key = 'feide_criteria_check_' . $mapping_index;
+            $debug_info = get_transient($debug_key);
+            if ($debug_info) {
+                $all_debug_info[] = array(
+                    'rule_name' => !empty($mapping['name']) ? $mapping['name'] : 'Rolleregel #' . ($mapping_index + 1),
+                    'role' => $mapping['role'],
+                    'operator' => $mapping['operator'] ?? 'AND',
+                    'criteria_met' => $criteria_met,
+                    'comparisons' => $debug_info
+                );
+                delete_transient($debug_key); // Rydd opp
+            }
 
             if ($criteria_met) {
                 $matched_roles[] = $mapping['role'];
             }
+        }
+
+        // Lagre samlet debug-info for alle regler
+        set_transient('feide_all_criteria_checks', $all_debug_info, 3600);
+
+        // Debug logging
+        if (WP_DEBUG) {
+            error_log('FEIDE Auth: Evaluated ' . count($valid_mappings) . ' role rules, matched ' . count($matched_roles) . ' roles: ' . implode(', ', $matched_roles));
         }
 
         if (empty($matched_roles)) {
@@ -363,7 +386,7 @@ class Feide_Authenticator {
     /**
      * Sjekk om kriterier er oppfylt
      */
-    private function check_criteria($attributes, $criteria, $operator = 'AND') {
+    private function check_criteria($attributes, $criteria, $operator = 'AND', $mapping_index = null) {
         if (empty($criteria)) {
             return false;
         }
@@ -392,7 +415,12 @@ class Feide_Authenticator {
             );
         }
 
-        // Lagre debug-info for siste kriterium-sjekk
+        // Lagre debug-info med unik nøkkel for denne regelen
+        if ($mapping_index !== null) {
+            set_transient('feide_criteria_check_' . $mapping_index, $debug_comparisons, 3600);
+        }
+
+        // Behold også gammel transient for bakoverkompatibilitet
         set_transient('feide_last_criteria_check', $debug_comparisons, 3600);
 
         if ($operator === 'OR') {
@@ -690,6 +718,11 @@ class Feide_Authenticator {
             // Legg til eventuelle ekstra roller
             for ($i = 1; $i < count($roles); $i++) {
                 $user->add_role($roles[$i]);
+            }
+
+            // Debug logging
+            if (WP_DEBUG) {
+                error_log('FEIDE Auth: Assigned roles to user ' . $username . ': ' . implode(', ', $roles));
             }
         }
 

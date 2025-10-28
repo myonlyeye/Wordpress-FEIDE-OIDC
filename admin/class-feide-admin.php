@@ -773,37 +773,50 @@ class Feide_WP_Auth_Admin {
         <?php endif; ?>
 
         <?php
-        $last_criteria_check = get_transient('feide_last_criteria_check');
-        if ($last_criteria_check):
+        $all_criteria_checks = get_transient('feide_all_criteria_checks');
+        if ($all_criteria_checks):
         ?>
-        <h3>Siste kriterium-sjekk (detaljert)</h3>
+        <h3>Evaluering av alle rolle-regler (detaljert)</h3>
         <div style="background: #fff3cd; padding: 15px; border: 1px solid #ffc107; margin-bottom: 20px;">
-            <p><strong>Dette viser nøyaktig hvordan hver rolle-regel ble sjekket:</strong></p>
-            <table class="wp-list-table widefat fixed striped">
-                <thead>
-                    <tr>
-                        <th>Attributt</th>
-                        <th>Faktisk verdi</th>
-                        <th>Type</th>
-                        <th>Forventet verdi</th>
-                        <th>Sammenligning</th>
-                        <th>Resultat</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($last_criteria_check as $check): ?>
-                    <tr style="background: <?php echo $check['result'] === 'MATCH' ? '#d4edda' : '#f8d7da'; ?>">
-                        <td><code><?php echo esc_html($check['attribute_path']); ?></code></td>
-                        <td><code><?php echo esc_html(print_r($check['actual_value'], true)); ?></code></td>
-                        <td><?php echo esc_html($check['actual_type']); ?></td>
-                        <td><code><?php echo esc_html($check['expected_value']); ?></code></td>
-                        <td><?php echo esc_html($check['comparison']); ?></td>
-                        <td><strong><?php echo esc_html($check['result']); ?></strong></td>
-                    </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-            <p><em>Grønn bakgrunn = match, rød bakgrunn = no match</em></p>
+            <p><strong>Dette viser nøyaktig hvordan ALLE rolle-regler ble evaluert:</strong></p>
+
+            <?php foreach ($all_criteria_checks as $rule_check): ?>
+                <div style="margin-bottom: 20px; padding: 15px; background: <?php echo $rule_check['criteria_met'] ? '#d4edda' : '#f8d7da'; ?>; border-radius: 5px;">
+                    <h4 style="margin-top: 0;">
+                        <?php echo esc_html($rule_check['rule_name']); ?>
+                        → Rolle: <strong><?php echo esc_html($rule_check['role']); ?></strong>
+                        → Operator: <strong><?php echo esc_html($rule_check['operator']); ?></strong>
+                        → Resultat: <strong><?php echo $rule_check['criteria_met'] ? '✅ MATCHET' : '❌ MATCHET IKKE'; ?></strong>
+                    </h4>
+
+                    <table class="wp-list-table widefat fixed striped" style="background: #fff;">
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">Attributt</th>
+                                <th style="width: 25%;">Faktisk verdi</th>
+                                <th style="width: 10%;">Type</th>
+                                <th style="width: 20%;">Forventet verdi</th>
+                                <th style="width: 10%;">Sammenligning</th>
+                                <th style="width: 10%;">Resultat</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($rule_check['comparisons'] as $check): ?>
+                            <tr style="background: <?php echo $check['result'] === 'MATCH' ? '#d4edda' : '#f8d7da'; ?>">
+                                <td><code><?php echo esc_html($check['attribute_path']); ?></code></td>
+                                <td><code style="word-break: break-all;"><?php echo esc_html(is_array($check['actual_value']) ? json_encode($check['actual_value'], JSON_UNESCAPED_UNICODE) : print_r($check['actual_value'], true)); ?></code></td>
+                                <td><?php echo esc_html($check['actual_type']); ?></td>
+                                <td><code><?php echo esc_html($check['expected_value']); ?></code></td>
+                                <td><?php echo esc_html($check['comparison']); ?></td>
+                                <td><strong><?php echo esc_html($check['result']); ?></strong></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endforeach; ?>
+
+            <p><em>Grønn bakgrunn = regel matchet / kriterium matchet, rød bakgrunn = regel matchet ikke / kriterium matchet ikke</em></p>
         </div>
         <?php endif; ?>
 
