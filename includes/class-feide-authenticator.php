@@ -153,6 +153,9 @@ class Feide_Authenticator {
             if (current_user_can('manage_options')) {
                 $message = '<h1>Tilgang nektet - Debug-modus (kun synlig for administratorer)</h1>';
 
+                // Hent debug-info fra criteria checks
+                $all_criteria_checks = get_transient('feide_all_criteria_checks');
+
                 // Analyser hvorfor tilgang ble nektet
                 $message .= '<div style="background: #fff3cd; padding: 15px; margin: 20px 0; border-left: 4px solid #ffc107;">';
                 $message .= '<h2>Årsak til tilgangsnekting:</h2>';
@@ -167,7 +170,24 @@ class Feide_Authenticator {
                 if (empty($role_mappings)) {
                     $message .= '<p>ℹ️ Ingen rolle-regler er definert</p>';
                 } else {
-                    $message .= '<p>ℹ️ ' . count($role_mappings) . ' rolle-regel(er) ble sjekket, men ingen matchet</p>';
+                    $message .= '<p>ℹ️ ' . count($role_mappings) . ' rolle-regel(er) ble sjekket</p>';
+
+                    // Vis resultat fra criteria checks
+                    if ($all_criteria_checks) {
+                        $message .= '<h3>Resultat av regeleval uering:</h3>';
+                        $message .= '<ul style="background: #fff; padding: 15px; margin: 10px 0;">';
+                        foreach ($all_criteria_checks as $check) {
+                            $color = $check['criteria_met'] ? 'green' : 'red';
+                            $icon = $check['criteria_met'] ? '✅' : '❌';
+                            $message .= '<li><strong>' . $icon . ' ' . esc_html($check['rule_name']) . '</strong> ';
+                            $message .= '(Rolle: ' . esc_html($check['role']) . ', ';
+                            $message .= 'Operator: ' . esc_html($check['operator']) . ') ';
+                            $message .= '<span style="color: ' . $color . ';">' . ($check['criteria_met'] ? 'MATCHET' : 'MATCHET IKKE') . '</span></li>';
+                        }
+                        $message .= '</ul>';
+                    }
+
+                    $message .= '<p><strong>Role check result:</strong> ' . esc_html(print_r($role_check, true)) . '</p>';
                 }
 
                 $message .= '</div>';
