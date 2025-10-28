@@ -101,6 +101,11 @@ class Feide_WP_Auth_Admin {
             $sanitized['default_role'] = sanitize_text_field($input['default_role']);
         }
 
+        // Redirect URL etter innlogging
+        if (isset($input['redirect_after_login'])) {
+            $sanitized['redirect_after_login'] = esc_url_raw($input['redirect_after_login']);
+        }
+
         // Attributt-mapping - kun oppdater hvis det finnes i input
         if (isset($input['attribute_mapping']) && is_array($input['attribute_mapping'])) {
             $sanitized['attribute_mapping'] = array();
@@ -344,6 +349,16 @@ class Feide_WP_Auth_Admin {
                         <?php endforeach; ?>
                     </select>
                     <p class="description">Standard rolle for nye brukere (brukes når "Gi alle tilgang" er aktivert eller ingen rolle-regler er definert)</p>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">
+                    <label for="redirect_after_login">Redirect etter innlogging</label>
+                </th>
+                <td>
+                    <input type="url" id="redirect_after_login" name="feide_wp_auth_settings[redirect_after_login]"
+                           value="<?php echo esc_attr($settings['redirect_after_login'] ?? home_url()); ?>" class="regular-text">
+                    <p class="description">Hvor skal brukere sendes etter vellykket innlogging? Standard er hjemmesiden. Du kan også bruke <code><?php echo home_url('/min-side'); ?></code> eller lignende.</p>
                 </td>
             </tr>
         </table>

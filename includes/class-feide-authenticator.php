@@ -218,8 +218,16 @@ class Feide_Authenticator {
         // Logg inn brukeren
         wp_set_auth_cookie($user->ID, true);
 
-        // Omdiriger til dashboard
-        wp_redirect(admin_url());
+        // Omdiriger til konfigurert URL (standard: hjemmeside)
+        $redirect_url = isset($this->settings['redirect_after_login']) && !empty($this->settings['redirect_after_login'])
+            ? $this->settings['redirect_after_login']
+            : home_url();
+
+        if (WP_DEBUG) {
+            error_log('FEIDE Auth: Redirecting user ' . $user->user_login . ' to: ' . $redirect_url);
+        }
+
+        wp_redirect($redirect_url);
         exit;
     }
 
