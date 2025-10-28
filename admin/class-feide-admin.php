@@ -106,6 +106,11 @@ class Feide_WP_Auth_Admin {
             $sanitized['redirect_after_login'] = esc_url_raw($input['redirect_after_login']);
         }
 
+        // Debug-logging
+        if (array_key_exists('enable_debug_logging', $input)) {
+            $sanitized['enable_debug_logging'] = isset($input['enable_debug_logging']) ? true : false;
+        }
+
         // Attributt-mapping - kun oppdater hvis det finnes i input
         if (isset($input['attribute_mapping']) && is_array($input['attribute_mapping'])) {
             $sanitized['attribute_mapping'] = array();
@@ -359,6 +364,23 @@ class Feide_WP_Auth_Admin {
                     <input type="url" id="redirect_after_login" name="feide_wp_auth_settings[redirect_after_login]"
                            value="<?php echo esc_attr($settings['redirect_after_login'] ?? home_url()); ?>" class="regular-text">
                     <p class="description">Hvor skal brukere sendes etter vellykket innlogging? Standard er hjemmesiden. Du kan også bruke <code><?php echo home_url('/min-side'); ?></code> eller lignende.</p>
+                </td>
+            </tr>
+        </table>
+
+        <h2 style="margin-top: 30px;">Debug-innstillinger</h2>
+        <table class="form-table">
+            <tr>
+                <th scope="row">
+                    <label for="enable_debug_logging">Aktiver debug-logging</label>
+                </th>
+                <td>
+                    <label>
+                        <input type="checkbox" id="enable_debug_logging" name="feide_wp_auth_settings[enable_debug_logging]"
+                               value="1" <?php checked(!empty($settings['enable_debug_logging'])); ?>>
+                        Lagre debug-informasjon om innlogginger og rolle-evalueringer
+                    </label>
+                    <p class="description">Når aktivert, lagres detaljert informasjon om hver innlogging (attributter, rolle-evalueringer, osv.) som kan sees i Debug-fanen. Deaktiver dette i produksjon av personvern- og sikkerhetshensyn.</p>
                 </td>
             </tr>
         </table>
@@ -755,8 +777,38 @@ class Feide_WP_Auth_Admin {
      * Render debug-fane
      */
     private function render_debug_tab($settings) {
+        // Håndter sletting av debug-data
+        if (isset($_POST['clear_debug_data']) && check_admin_referer('feide_clear_debug', 'feide_debug_nonce')) {
+            $this->clear_debug_data();
+            echo '<div class="notice notice-success"><p>Debug-data er slettet.</p></div>';
+        }
+
+        $debug_enabled = !empty($settings['enable_debug_logging']);
         ?>
         <h2>Debug-informasjon</h2>
+
+        <?php if (!$debug_enabled): ?>
+        <div class="notice notice-warning">
+            <p><strong>⚠️ Debug-logging er deaktivert</strong></p>
+            <p>For å samle debug-informasjon må du først aktivere debug-logging i <a href="?page=feide-wp-auth&tab=settings">OpenID Innstillinger</a>.</p>
+        </div>
+        <?php else: ?>
+        <div class="notice notice-info">
+            <p><strong>ℹ️ Debug-logging er aktivert</strong></p>
+            <p>Informasjon om innlogginger og rolle-evalueringer lagres. Deaktiver dette i produksjon av personvern- og sikkerhetshensyn.</p>
+        </div>
+        <?php endif; ?>
+
+        <div style="margin: 20px 0;">
+            <form method="post" action="" style="display: inline;">
+                <?php wp_nonce_field('feide_clear_debug', 'feide_debug_nonce'); ?>
+                <button type="submit" name="clear_debug_data" class="button" onclick="return confirm('Er du sikker på at du vil slette all debug-data?');">
+                    Slett all debug-data
+                </button>
+            </form>
+            <p class="description">Sletter all lagret debug-informasjon (attributter, rolle-evalueringer, osv.) fra databasen.</p>
+        </div>
+
         <p>Denne fanen viser alle lagrede innstillinger og siste feilmeldinger. Dette er nyttig for å feilsøke tilgangsproblemer.</p>
 
         <?php
@@ -922,5 +974,19 @@ class Feide_WP_Auth_Admin {
             <p><strong>Eller:</strong> Konfigurer rolle-regler i <a href="<?php echo admin_url('admin.php?page=feide-wp-auth&tab=roles'); ?>">Rolletildeling</a> basert på attributtene over.</p>
         </div>
         <?php
+    }
+
+    /**
+     * Slett all debug-data
+     */
+    private function clear_debug_data() {
+        global $wpdb;
+
+        // Slett alle FEIDE-relaterte transients
+        $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_feide_%' OR option_name LIKE '_transient_timeout_feide_%'");
+
+        if (WP_DEBUG) {
+            error_log('FEIDE Auth: All debug data cleared');
+        }
     }
 }

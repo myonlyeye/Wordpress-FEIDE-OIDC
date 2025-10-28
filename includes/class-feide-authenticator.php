@@ -22,6 +22,13 @@ class Feide_Authenticator {
     }
 
     /**
+     * Sjekk om debug-logging er aktivert
+     */
+    private function is_debug_enabled() {
+        return !empty($this->settings['enable_debug_logging']);
+    }
+
+    /**
      * Håndter callback fra FEIDE
      */
     public function handle_callback() {
@@ -104,13 +111,15 @@ class Feide_Authenticator {
         // Kombiner bruker- og gruppeinformasjon
         $all_attributes = array_merge($user_info, array('groups' => $group_info));
 
-        // Lagre attributter for debugging (alltid, ikke bare ved feil)
-        set_transient('feide_last_attributes', array(
-            'user_info' => $user_info,
-            'group_info' => $group_info,
-            'all_attributes' => $all_attributes,
-            'timestamp' => current_time('mysql')
-        ), 3600);
+        // Lagre attributter for debugging (kun hvis debug er aktivert)
+        if ($this->is_debug_enabled()) {
+            set_transient('feide_last_attributes', array(
+                'user_info' => $user_info,
+                'group_info' => $group_info,
+                'all_attributes' => $all_attributes,
+                'timestamp' => current_time('mysql')
+            ), 3600);
+        }
 
         // Hvis dette er test-modus, lagre resultatene og redirect til admin
         if ($is_test_mode) {
@@ -136,18 +145,20 @@ class Feide_Authenticator {
                 error_log('FEIDE Auth: Access denied for user (sub: ' . ($user_info['sub'] ?? 'unknown') . ') - no matching role criteria');
             }
 
-            // Lagre omfattende debug-info
-            $debug_info = array(
-                'attributes' => $all_attributes,
-                'settings' => array(
-                    'allow_all_authenticated' => isset($this->settings['allow_all_authenticated']) ? $this->settings['allow_all_authenticated'] : 'NOT SET',
-                    'default_role' => isset($this->settings['default_role']) ? $this->settings['default_role'] : 'NOT SET',
-                    'role_mappings' => isset($this->settings['role_mappings']) ? $this->settings['role_mappings'] : 'NOT SET',
-                ),
-                'role_check_result' => $role_check,
-                'timestamp' => current_time('mysql')
-            );
-            set_transient('feide_access_denied_debug', $debug_info, 3600);
+            // Lagre omfattende debug-info (kun hvis debug er aktivert)
+            if ($this->is_debug_enabled()) {
+                $debug_info = array(
+                    'attributes' => $all_attributes,
+                    'settings' => array(
+                        'allow_all_authenticated' => isset($this->settings['allow_all_authenticated']) ? $this->settings['allow_all_authenticated'] : 'NOT SET',
+                        'default_role' => isset($this->settings['default_role']) ? $this->settings['default_role'] : 'NOT SET',
+                        'role_mappings' => isset($this->settings['role_mappings']) ? $this->settings['role_mappings'] : 'NOT SET',
+                    ),
+                    'role_check_result' => $role_check,
+                    'timestamp' => current_time('mysql')
+                );
+                set_transient('feide_access_denied_debug', $debug_info, 3600);
+            }
 
             // Hvis bruker er admin, vis detaljert info
             if (current_user_can('manage_options')) {
@@ -413,8 +424,10 @@ class Feide_Authenticator {
             }
         }
 
-        // Lagre samlet debug-info for alle regler
-        set_transient('feide_all_criteria_checks', $all_debug_info, 3600);
+        // Lagre samlet debug-info for alle regler (kun hvis debug er aktivert)
+        if ($this->is_debug_enabled()) {
+            set_transient('feide_all_criteria_checks', $all_debug_info, 3600);
+        }
 
         // Debug logging
         if (WP_DEBUG) {
@@ -468,13 +481,15 @@ class Feide_Authenticator {
             );
         }
 
-        // Lagre debug-info med unik nøkkel for denne regelen
-        if ($mapping_index !== null) {
-            set_transient('feide_criteria_check_' . $mapping_index, $debug_comparisons, 3600);
-        }
+        // Lagre debug-info med unik nøkkel for denne regelen (kun hvis debug er aktivert)
+        if ($this->is_debug_enabled()) {
+            if ($mapping_index !== null) {
+                set_transient('feide_criteria_check_' . $mapping_index, $debug_comparisons, 3600);
+            }
 
-        // Behold også gammel transient for bakoverkompatibilitet
-        set_transient('feide_last_criteria_check', $debug_comparisons, 3600);
+            // Behold også gammel transient for bakoverkompatibilitet
+            set_transient('feide_last_criteria_check', $debug_comparisons, 3600);
+        }
 
         // Debug logging
         if (WP_DEBUG) {
