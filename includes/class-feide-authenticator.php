@@ -346,15 +346,29 @@ class Feide_Authenticator {
         $matched_roles = array();
         $all_debug_info = array(); // Lagre debug-info for alle regler
 
+        if (WP_DEBUG) {
+            error_log('FEIDE Auth: Starting evaluation of ' . count($valid_mappings) . ' valid role rules');
+        }
+
         foreach ($valid_mappings as $mapping_index => $mapping) {
+            $rule_name = !empty($mapping['name']) ? $mapping['name'] : 'Rolleregel #' . ($mapping_index + 1);
+
+            if (WP_DEBUG) {
+                error_log('FEIDE Auth: Evaluating rule "' . $rule_name . '" (index: ' . $mapping_index . ', role: ' . $mapping['role'] . ', operator: ' . ($mapping['operator'] ?? 'AND') . ')');
+            }
+
             $criteria_met = $this->check_criteria($attributes, $mapping['criteria'], $mapping['operator'], $mapping_index);
+
+            if (WP_DEBUG) {
+                error_log('FEIDE Auth: Rule "' . $rule_name . '" result: ' . ($criteria_met ? 'MATCHED' : 'NOT MATCHED'));
+            }
 
             // Hent debug-info for denne regelen
             $debug_key = 'feide_criteria_check_' . $mapping_index;
             $debug_info = get_transient($debug_key);
             if ($debug_info) {
                 $all_debug_info[] = array(
-                    'rule_name' => !empty($mapping['name']) ? $mapping['name'] : 'Rolleregel #' . ($mapping_index + 1),
+                    'rule_name' => $rule_name,
                     'role' => $mapping['role'],
                     'operator' => $mapping['operator'] ?? 'AND',
                     'criteria_met' => $criteria_met,
@@ -365,6 +379,9 @@ class Feide_Authenticator {
 
             if ($criteria_met) {
                 $matched_roles[] = $mapping['role'];
+                if (WP_DEBUG) {
+                    error_log('FEIDE Auth: Added role "' . $mapping['role'] . '" to matched_roles. Total matched roles so far: ' . count($matched_roles));
+                }
             }
         }
 
@@ -373,11 +390,19 @@ class Feide_Authenticator {
 
         // Debug logging
         if (WP_DEBUG) {
-            error_log('FEIDE Auth: Evaluated ' . count($valid_mappings) . ' role rules, matched ' . count($matched_roles) . ' roles: ' . implode(', ', $matched_roles));
+            error_log('FEIDE Auth: Evaluated ' . count($valid_mappings) . ' role rules, matched ' . count($matched_roles) . ' roles: ' . print_r($matched_roles, true));
+            error_log('FEIDE Auth: matched_roles empty? ' . (empty($matched_roles) ? 'YES' : 'NO'));
         }
 
         if (empty($matched_roles)) {
+            if (WP_DEBUG) {
+                error_log('FEIDE Auth: NO ROLES MATCHED - DENYING ACCESS');
+            }
             return array('allowed' => false, 'roles' => array());
+        }
+
+        if (WP_DEBUG) {
+            error_log('FEIDE Auth: AT LEAST ONE ROLE MATCHED - GRANTING ACCESS with roles: ' . implode(', ', array_unique($matched_roles)));
         }
 
         return array('allowed' => true, 'roles' => array_unique($matched_roles));
@@ -423,10 +448,23 @@ class Feide_Authenticator {
         // Behold også gammel transient for bakoverkompatibilitet
         set_transient('feide_last_criteria_check', $debug_comparisons, 3600);
 
+        // Debug logging
+        if (WP_DEBUG) {
+            error_log('FEIDE Auth: check_criteria - Operator: ' . $operator . ', Total criteria: ' . count($criteria) . ', Results: ' . print_r($results, true));
+        }
+
         if ($operator === 'OR') {
-            return in_array(true, $results, true);
+            $final_result = in_array(true, $results, true);
+            if (WP_DEBUG) {
+                error_log('FEIDE Auth: check_criteria - OR operator, at least one true? ' . ($final_result ? 'YES' : 'NO'));
+            }
+            return $final_result;
         } else {
-            return !in_array(false, $results, true);
+            $final_result = !in_array(false, $results, true);
+            if (WP_DEBUG) {
+                error_log('FEIDE Auth: check_criteria - AND operator, no false values? ' . ($final_result ? 'YES' : 'NO'));
+            }
+            return $final_result;
         }
     }
 
