@@ -383,8 +383,7 @@ GPL v2 or later
 
 ## Support
 
-For questions or issues, create an issue on GitHub:
-https://github.com/myonlyeye/fida/issues
+For questions or issues, create an issue on GitHub.
 
 ## Contributing
 
