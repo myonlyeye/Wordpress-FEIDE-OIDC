@@ -361,11 +361,11 @@ User metadata is stored per user:
 For full version history and detailed changes, see [CHANGELOG.md](CHANGELOG.md).
 
 **Latest versions:**
-- **v2.2.0** (2025-01-XX) - Security fixes: Client secret protection, reduced info leakage
-- **v2.1.0** (2025-01-26) - Wildcard support for attribute matching
-- **v2.0.0** (2025-01-26) - Major refactoring: external assets, cron cleanup, error logging
-- **v1.1.0** - Improved FEIDE button design and placement
-- **v1.0.0** - Initial release
+- **v2.2** - Security fixes: Client secret protection, reduced info leakage
+- **v2.1** - Wildcard support for attribute matching
+- **v2.0** - Major refactoring: external assets, cron cleanup, error logging
+- **v1.1** - Improved FEIDE button design and placement
+- **v1.0** - Initial release
 
 ## Credits
 
