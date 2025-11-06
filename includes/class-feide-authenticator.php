@@ -254,8 +254,8 @@ class Feide_Authenticator {
         if (WP_DEBUG) {
             error_log('FEIDE Auth: Using Client ID - Length: ' . strlen($client_id) . ', Value: ' . $client_id);
             $secret_len = strlen($client_secret);
-            $secret_preview = $secret_len > 0 ? substr($client_secret, 0, 8) . '...' . substr($client_secret, -4) : 'EMPTY';
-            error_log('FEIDE Auth: Using Client Secret - Length: ' . $secret_len . ', Preview: ' . $secret_preview);
+            // SECURITY: Do not log any part of the secret itself
+            error_log('FEIDE Auth: Client Secret configured: ' . ($secret_len > 0 ? 'YES (length: ' . $secret_len . ')' : 'NO (empty)'));
         }
 
         $auth = base64_encode($client_id . ':' . $client_secret);
@@ -288,7 +288,15 @@ class Feide_Authenticator {
             if (WP_DEBUG) {
                 error_log('FEIDE Auth: No access token in response - ' . substr($body, 0, 200));
             }
-            return new WP_Error('token_error', 'Mottok ikke access token fra FEIDE. Respons: ' . $body);
+            // SECURITY: Do not expose full response body to users (may contain sensitive data)
+            $error_msg = 'Mottok ikke access token fra FEIDE.';
+            if (isset($data['error'])) {
+                $error_msg .= ' Feil: ' . sanitize_text_field($data['error']);
+            }
+            if (isset($data['error_description'])) {
+                $error_msg .= ' - ' . sanitize_text_field($data['error_description']);
+            }
+            return new WP_Error('token_error', $error_msg);
         }
 
         return $data;
