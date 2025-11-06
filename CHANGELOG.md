@@ -15,6 +15,49 @@ This plugin is a collaboration between:
 
 A testament to what human creativity and AI capabilities can achieve together! 🚀
 
+## [2.2.0] - 2025-01-27
+
+### Security
+- **CRITICAL: Removed client secret from debug logs** - Client secret is no longer logged (not even preview). Only logs if secret is configured and its length.
+- **Reduced information leakage in error messages** - Error responses from FEIDE no longer expose full response body to users. Only structured error/error_description fields are shown.
+- **Enhanced credential protection** - Improved handling of sensitive data throughout the codebase
+
+### Added
+- **Toggleable debug logging** - New setting to enable/disable debug data collection for privacy
+  - Located in OpenID Settings → Debug Settings
+  - When disabled, no sensitive debug data is stored
+  - Can be toggled without affecting functionality
+- **Debug data cleanup** - New button in Debug tab to delete all stored debug information
+  - Clears all FEIDE-related transients from database
+  - Includes confirmation dialog
+  - Useful for privacy compliance
+- **Debug status indicators** - Debug tab now shows whether logging is enabled or disabled
+- **Configurable redirect after login** - Set custom URL where users are sent after successful authentication
+  - Default: Homepage
+  - Can be any page (e.g., dashboard, profile page, custom portal)
+  - Prevents "access denied" for users without admin permissions
+- **Named role rules** - Add custom names to role rules for easier management
+  - Optional but helpful for organizations with many rules
+  - Names shown in rule headers and debug output
+
+### Changed
+- **Enhanced role evaluation debugging** - All role rules now show detailed evaluation results
+  - Visual indicators (✅/❌) for matched/unmatched rules
+  - Shows operator and all criteria per rule
+  - Makes troubleshooting much easier
+- **Improved access denied messages** - Admins now see detailed rule evaluation when users are denied access
+- **Better logging practices** - All debug logging now respects the enable_debug_logging setting
+
+### Security Fixes
+- Client secret no longer appears in logs (addresses potential credential reconstruction)
+- Error messages sanitized to prevent information disclosure
+- Full response bodies only logged to error_log, never shown to users
+
+### Recommended Actions
+- **Update immediately** if you have WP_DEBUG enabled in production
+- **Enable debug logging only when troubleshooting**
+- **Clear debug data** after troubleshooting sessions
+
 ## [2.1.0] - 2025-01-26
 
 ### Added
@@ -140,6 +183,7 @@ Features planned for future releases:
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| **2.2.0** | 2025-01-27 | 🔒 Security fixes: Client secret protection, debug toggle |
 | **2.1.0** | 2025-01-26 | 🌟 Wildcard support for attribute matching |
 | **2.0.0** | 2025-01-26 | 🔄 Major refactoring: external assets, cron cleanup, error logging |
 | **1.1.0** | 2025-01-XX | 🎨 Improved button design with FEIDE branding |
@@ -147,16 +191,28 @@ Features planned for future releases:
 
 ## Upgrade Path
 
-### From 1.x to 2.x
+### From 2.1 to 2.2 (RECOMMENDED SECURITY UPDATE)
+- **Critical security fixes** - Update immediately if using WP_DEBUG in production
 - No breaking changes - fully backward compatible
-- New features are opt-in
-- Existing role rules continue to work
-- Wildcards are optional enhancement
+- New features:
+  - Debug logging is now opt-in (disabled by default)
+  - Configure redirect URL after login
+  - Name your role rules for better organization
+- Action items:
+  - Review and enable debug logging only when needed
+  - Clear old debug data if privacy is a concern
+  - Configure redirect URL if users don't need admin access
 
 ### From 2.0 to 2.1
 - Seamless upgrade - no action required
 - Start using wildcards in new role rules
 - Old rules without wildcards still work perfectly
+
+### From 1.x to 2.x
+- No breaking changes - fully backward compatible
+- New features are opt-in
+- Existing role rules continue to work
+- Wildcards are optional enhancement
 
 ## Statistics
 

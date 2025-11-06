@@ -1,364 +1,394 @@
 # FEIDE WordPress Authentication Plugin
 
-En WordPress-plugin som autentiserer brukere mot FEIDE via OpenID Connect/OAuth 2.0.
+A WordPress plugin that authenticates users against FEIDE via OpenID Connect/OAuth 2.0.
 
-## Beskrivelse
+## Description
 
-Denne pluginen lar deg integrere FEIDE-autentisering i WordPress, med avanserte muligheter for:
-- Automatisk brukeroppretting
-- Fleksibel attributt-mapping
-- Rolle-tildeling basert på FEIDE-attributter
-- Test-funksjonalitet for å se alle mottatte attributter
+This plugin allows you to integrate FEIDE authentication into WordPress, with advanced capabilities for:
+- Automatic user creation
+- Flexible attribute mapping
+- Role assignment based on FEIDE attributes
+- Test functionality to view all received attributes
 
-## Funksjoner
+## Features
 
-### OpenID Connect-integrasjon
-- Full støtte for OAuth 2.0 / OpenID Connect-flyt
-- Sikker token-håndtering
-- CSRF-beskyttelse med state-parameter
+### OpenID Connect Integration
+- Full support for OAuth 2.0 / OpenID Connect flow
+- Secure token handling
+- CSRF protection with state parameter
 
-### Konfigurerbart Admin-panel
-- Enkelt oppsett av alle OpenID-parametre
-- Client ID og Client Secret
-- Konfigurerbare endpoints
-- Redirect/Callback URL-administrasjon
+### Configurable Admin Panel
+- Easy setup of all OpenID parameters
+- Client ID and Client Secret configuration
+- Configurable endpoints
+- Redirect/Callback URL management
 
-### Test-funksjonalitet
-- Test innlogging direkte fra admin-panelet
-- Vis alle mottatte attributter fra FEIDE
-- Debugging-verktøy for attributt-mapping
+### Test Functionality
+- Test login directly from admin panel
+- View all attributes received from FEIDE
+- Debugging tools for attribute mapping
 
-### Attributt-mapping
-- Map FEIDE-attributter til WordPress-brukerfelter
-- Støtte for nested attributter (f.eks. `user:id`)
-- Konfigurerbare felt:
-  - Brukernavn
-  - E-post
-  - Fornavn
-  - Etternavn
-  - Visningsnavn
+### Attribute Mapping
+- Map FEIDE attributes to WordPress user fields
+- Support for nested attributes (e.g., `user:id`)
+- Configurable fields:
+  - Username
+  - Email
+  - First name
+  - Last name
+  - Display name
 
-### Avansert rolle-tildeling
-- Definer kriterier basert på FEIDE-attributter
-- Støtte for AND/OR-logikk
-- Flere sammenligningsoperatorer:
-  - Er lik
-  - Inneholder
-  - Starter med
-  - Slutter med
-  - Er ikke lik
-- Tildel forskjellige WordPress-roller basert på attributter
-- Fleksibelt system med flere regler
+### Advanced Role Assignment
+- Define criteria based on FEIDE attributes
+- Support for AND/OR logic
+- Multiple comparison operators:
+  - Equals
+  - Contains
+  - Starts with
+  - Ends with
+  - Not equals
+- Assign different WordPress roles based on attributes
+- Flexible system with multiple rules
+- Custom names for each rule
 
-### Automatisk brukeroppretting
-- Opprett nye brukere automatisk ved første innlogging
-- Konfigurerbar on/off
-- Automatisk tildeling av roller basert på kriterier
+### Wildcard Pattern Matching
+- Use `*` as wildcard in attribute paths
+- Example: `groups:*:id` matches if ANY group has the specified ID
+- Recursive wildcard support for nested structures
+- Returns all matching values as array
 
-## Installasjon
+### Automatic User Creation
+- Create new users automatically on first login
+- Configurable on/off
+- Automatic role assignment based on criteria
 
-1. Last ned eller klon dette repositoriet til WordPress plugin-mappen:
+### Security Features
+- Toggleable debug logging (privacy-friendly)
+- Client credentials validation
+- Secure error handling (no sensitive data exposure)
+- Configurable redirect after login
+
+## Installation
+
+1. Download or clone this repository to your WordPress plugins folder:
    ```bash
    cd /path/to/wordpress/wp-content/plugins/
    git clone https://github.com/myonlyeye/fida.git feide-wordpress-auth
    ```
 
-2. Aktiver pluginen i WordPress admin-panelet under "Plugins"
+2. Activate the plugin in WordPress admin panel under "Plugins"
 
-3. Gå til "Innstillinger" → "FEIDE Autentisering" for å konfigurere
+3. Go to "Settings" → "FEIDE Authentication" to configure
 
-## Konfigurasjon
+## Configuration
 
-### 1. OpenID-innstillinger
+### 1. OpenID Settings
 
-Gå til admin-panelet og fyll inn følgende felter:
+Go to the admin panel and fill in the following fields:
 
-#### Obligatoriske felt:
-- **Client ID**: Din applikasjons Client ID fra FEIDE
-- **Client Secret**: Din applikasjons Client Secret fra FEIDE
-- **Redirect/Callback URL**: URL hvor FEIDE skal sende brukeren tilbake (må registreres hos FEIDE)
+#### Required fields:
+- **Client ID**: Your application's Client ID from FEIDE
+- **Client Secret**: Your application's Client Secret from FEIDE
+- **Redirect/Callback URL**: URL where FEIDE should redirect the user (must be registered with FEIDE)
 
-#### Standard FEIDE-endpoints (kan endres ved behov):
+#### Default FEIDE endpoints (can be changed if needed):
 - **Authorize Endpoint**: `https://auth.dataporten.no/oauth/authorization`
 - **Access Token Endpoint**: `https://auth.dataporten.no/oauth/token`
 - **Get User Info Endpoint**: `https://auth.dataporten.no/userinfo`
 - **Group User Info Endpoint**: `https://groups-api.dataporten.no/groups/me/groups`
 
-#### Andre innstillinger:
-- **Scope**: `openid profile email` (kan utvides etter behov)
-- **Automatisk oppretting av brukere**: Kryss av for å aktivere
+#### Other settings:
+- **Scope**: `openid profile email` (can be extended as needed)
+- **Automatic user creation**: Check to enable
+- **Redirect after login**: URL where users are sent after successful login (default: homepage)
+- **Enable debug logging**: Toggle debug data collection on/off
 
-### 2. Test autentisering
+### 2. Test Authentication
 
-1. Gå til fanen "Test Autentisering"
-2. Klikk på "Test FEIDE-innlogging"
-3. Logg inn med din FEIDE-konto
-4. Se alle attributter som mottas fra FEIDE
-5. Bruk denne informasjonen til å konfigurere attributt-mapping og rolle-tildeling
+1. Go to the "Test Authentication" tab
+2. Click "Test FEIDE Login"
+3. Log in with your FEIDE account
+4. View all attributes received from FEIDE
+5. Use this information to configure attribute mapping and role assignment
 
-### 3. Attributt-mapping
+### 3. Attribute Mapping
 
-Gå til fanen "Attributt-mapping" for å definere hvordan FEIDE-attributter skal mappes til WordPress-brukerfelter:
+Go to the "Attribute Mapping" tab to define how FEIDE attributes should be mapped to WordPress user fields:
 
-- **Brukernavn**: Standard `sub` (FEIDE bruker-ID)
-- **E-post**: Standard `email`
-- **Fornavn**: Standard `given_name`
-- **Etternavn**: Standard `family_name`
-- **Visningsnavn**: Standard `name`
+- **Username**: Default `sub` (FEIDE user ID)
+- **Email**: Default `email`
+- **First name**: Default `given_name`
+- **Last name**: Default `family_name`
+- **Display name**: Default `name`
 
-For nested attributter, bruk kolon som separator: `parent:child:value`
+For nested attributes, use colon as separator: `parent:child:value`
 
-### 4. Rolletildeling
+### 4. Role Assignment
 
-Gå til fanen "Rolletildeling" for å definere hvilke brukere som får tilgang og hvilke roller de skal tildeles.
+Go to the "Role Assignment" tab to define which users get access and which roles they should be assigned.
 
-#### Eksempel 1: Spillpedagog-kommune
-Lag en rolleregel med følgende kriterier:
-- **WordPress-rolle**: Velg eller opprett "Spillpedagog-kommune"
-- **Operator**: AND (alle kriterier må være oppfylt)
-- **Kriterier**:
-  - Attributt: `eduPersonOrgUnitDN:norEduOrgUnitUniqueIdentifier`
-  - Sammenligning: Er lik
-  - Verdi: `[verdi for kommune]`
+#### Example 1: Municipality Employee
+Create a role rule with the following criteria:
+- **Rule name**: "Municipality Employees" (optional but helpful)
+- **WordPress role**: Select or create appropriate role
+- **Operator**: AND (all criteria must be met)
+- **Criteria**:
+  - Attribute: `eduPersonOrgUnitDN:norEduOrgUnitUniqueIdentifier`
+  - Comparison: Equals
+  - Value: `[value for municipality]`
 
-#### Eksempel 2: Spillpedagog-skole
-Lag en ny rolleregel:
-- **WordPress-rolle**: Velg eller opprett "Spillpedagog-skole"
+#### Example 2: School Staff
+Create a new role rule:
+- **Rule name**: "School Staff"
+- **WordPress role**: Select or create appropriate role
 - **Operator**: AND
-- **Kriterier**:
-  - Attributt: `eduPersonOrgDN:norEduOrgNIN`
-  - Sammenligning: Er lik
-  - Verdi: `[verdi for skole]`
+- **Criteria**:
+  - Attribute: `eduPersonOrgDN:norEduOrgNIN`
+  - Comparison: Equals
+  - Value: `[value for school]`
 
-#### Eksempel 3: Flere alternativer (OR-logikk)
-For å tillate flere attributter som gir samme rolle:
-- **Operator**: OR (minst ett kriterium må være oppfylt)
-- Legg til flere kriterier med "Legg til kriterium"
+#### Example 3: Multiple Options (OR logic)
+To allow multiple attributes that grant the same role:
+- **Operator**: OR (at least one criterion must be met)
+- Add multiple criteria with "Add Criterion"
 
-#### Eksempel 4: Wildcard for gruppemedlemskap
-Bruk wildcard (`*`) for å sjekke medlemskap i grupper uten å kjenne eksakt indeks:
-- **WordPress-rolle**: Redaktør
+#### Example 4: Wildcard for Group Membership
+Use wildcard (`*`) to check group membership without knowing exact index:
+- **WordPress role**: Editor
 - **Operator**: AND
-- **Kriterier**:
-  - Attributt: `groups:*:id`
-  - Sammenligning: Er lik
-  - Verdi: `fc:adhoc:abc-123-def-456`
+- **Criteria**:
+  - Attribute: `groups:*:id`
+  - Comparison: Equals
+  - Value: `fc:adhoc:abc-123-def-456`
 
-Dette matcher hvis brukeren er medlem i EN ELLER FLERE grupper der minst én gruppe har `id = fc:adhoc:abc-123-def-456`.
+This matches if the user is a member of ONE OR MORE groups where at least one group has `id = fc:adhoc:abc-123-def-456`.
 
-**Andre wildcard-eksempler:**
-- `groups:*:displayName` - Match gruppenavn (f.eks. "Lærere", "Administrasjon")
-- `groups:*:membership:basic` - Match medlemskapstype
-- `user:orgs:*:role` - Match rolle i hvilken som helst organisasjon
+**Other wildcard examples:**
+- `groups:*:displayName` - Match group name (e.g., "Teachers", "Administration")
+- `groups:*:membership:basic` - Match membership type
+- `user:orgs:*:role` - Match role in any organization
 
-**Fordeler med wildcards:**
-- ✅ Slipper å lage separate regler for hver gruppeindeks
-- ✅ Fungerer automatisk selv om antall grupper endres
-- ✅ Enklere vedlikehold
+**Benefits of wildcards:**
+- ✅ No need to create separate rules for each group index
+- ✅ Works automatically even if number of groups changes
+- ✅ Easier maintenance
 
-## Bruk
+## Usage
 
-### For sluttbrukere
-1. Gå til WordPress innloggingsside
-2. Klikk på "Logg inn med FEIDE"
-3. Logg inn med din FEIDE-konto
-4. Blir automatisk opprettet og logget inn i WordPress
+### For End Users
+1. Go to WordPress login page
+2. Click "Login with FEIDE"
+3. Log in with your FEIDE account
+4. Automatically created and logged into WordPress
 
-### For administratorer
-- Administrer roller og tilgangskriterier i admin-panelet
-- Test konfigurasjonen uten å påvirke produksjon
-- Overvåk hvilke attributter som mottas fra FEIDE
+### For Administrators
+- Manage roles and access criteria in admin panel
+- Test configuration without affecting production
+- Monitor which attributes are received from FEIDE
 
-## Sikkerhet
+## Security
 
-Pluginen implementerer flere sikkerhetstiltak:
-- CSRF-beskyttelse med state-parameter og nonces
-- Sikker token-håndtering
-- Transient-basert session-håndtering
-- Sanitering av alle brukerinput
-- WordPress nonces for AJAX-kall
+The plugin implements several security measures:
+- CSRF protection with state parameter and nonces
+- Secure token handling
+- Transient-based session management
+- Sanitization of all user input
+- WordPress nonces for AJAX calls
+- **Secure error handling**: No sensitive data exposed in error messages
+- **Client secret protection**: Not logged (even in debug mode)
+- **Toggleable debug logging**: Privacy-friendly data collection
 
-## Feilsøking
+### Security Updates
 
-### Vanlige problemer og løsninger
+**Version 2.2.0** includes critical security fixes:
+- Removed client secret from debug logs
+- Reduced information leakage in error messages
+- Enhanced security for credential handling
 
-#### Problem: "Ugyldig state-parameter" eller "Mulig CSRF-angrep"
-**Årsak:** State-parameteren har utløpt (10 minutter) eller cookies er blokkert.
+## Troubleshooting
 
-**Løsning:**
-1. Prøv å logge inn på nytt
-2. Sjekk at nettleseren tillater cookies
-3. Hvis problemet vedvarer, sjekk om server-tid er korrekt synkronisert
+### Common Issues and Solutions
 
-#### Problem: "Mottok ikke access token fra FEIDE" eller "Wrong client credentials"
-**Årsak:** Feil Client ID/Secret eller redirect URI mismatch.
+#### Issue: "Invalid state parameter" or "Possible CSRF attack"
+**Cause:** State parameter has expired (10 minutes) or cookies are blocked.
 
-**Løsning:**
-1. Verifiser at **Client ID** og **Client Secret** er korrekte i Settings-fanen
-2. Kontroller at **Redirect URI** i WordPress matcher **nøyaktig** det som er registrert hos FEIDE
-   - Standard: `https://dittdomene.no/wp-login.php?feide-auth=callback`
-   - Må være identisk (inkludert http vs https)
-3. Test med "Test FEIDE-innlogging" funksjonen først
-4. Sjekk debug-fanen for detaljert feilmelding
+**Solution:**
+1. Try logging in again
+2. Check that the browser allows cookies
+3. If the problem persists, check if server time is correctly synchronized
 
-#### Problem: "Du har ikke tilgang til dette systemet"
-**Årsak:** Brukeren oppfyller ikke noen av rolle-reglene som er konfigurert.
+#### Issue: "Did not receive access token from FEIDE" or "Wrong client credentials"
+**Cause:** Incorrect Client ID/Secret or redirect URI mismatch.
 
-**Løsning:**
-1. Gå til **Debug-fanen** og se "Siste kriterium-sjekk" - denne viser nøyaktig hvorfor tilgang ble nektet
-2. Sammenlign attributt-verdiene som ble mottatt med forventet verdi i rolle-regelen
-3. **Hurtigfiks:** Aktiver "Gi alle autentiserte FEIDE-brukere tilgang" i Settings-fanen
-4. Sjekk at attributt-stier er riktige (f.eks. `groups:0:id` ikke `group_info:0:id`)
-5. Husk at sammenligning er case-insensitive
+**Solution:**
+1. Verify that **Client ID** and **Client Secret** are correct in Settings tab
+2. Check that **Redirect URI** in WordPress matches **exactly** what is registered with FEIDE
+   - Default: `https://yourdomain.com/wp-login.php?feide-auth=callback`
+   - Must be identical (including http vs https)
+3. Test with "Test FEIDE Login" function first
+4. Check debug tab for detailed error message
 
-**Eksempel debug-output:**
+#### Issue: "You do not have access to this system"
+**Cause:** User does not meet any of the configured role rules.
+
+**Solution:**
+1. Go to **Debug tab** and see "Role Rule Evaluation" - shows exactly why access was denied
+2. Compare received attribute values with expected values in role rules
+3. **Quick fix:** Enable "Allow all authenticated FEIDE users" in Settings tab
+4. Check that attribute paths are correct (e.g., `groups:0:id` not `group_info:0:id`)
+5. Remember that comparison is case-insensitive
+
+**Example debug output:**
 ```
-Attributt: groups:0:displayName
-Faktisk verdi: "Lærere"
-Forventet verdi: "laerere"
-Resultat: MATCH (case-insensitive)
+Attribute: groups:0:displayName
+Actual value: "Teachers"
+Expected value: "teachers"
+Result: MATCH (case-insensitive)
 ```
 
-#### Problem: Brukeren opprettes ikke automatisk
-**Årsak:** Auto-create er deaktivert eller bruker oppfyller ikke kriterier.
+#### Issue: User is not created automatically
+**Cause:** Auto-create is disabled or user doesn't meet criteria.
 
-**Løsning:**
-1. Gå til **Settings → Automatisk oppretting av brukere** og aktiver
-2. Sjekk at brukeren oppfyller minst én rolleregel ELLER at "Gi alle tilgang" er aktivert
-3. Sjekk WordPress debug-log (`wp-content/debug.log`) for feilmeldinger
-4. Verifiser at e-postadresse mottas fra FEIDE (se Test-fanen)
+**Solution:**
+1. Go to **Settings → Automatic user creation** and enable
+2. Check that user meets at least one role rule OR "Allow all" is enabled
+3. Check WordPress debug log (`wp-content/debug.log`) for error messages
+4. Verify that email address is received from FEIDE (see Test tab)
 
-#### Problem: FEIDE-knappen vises ikke på innloggingssiden
-**Årsak:** Plugin ikke konfigurert eller JavaScript/CSS ikke lastet.
+#### Issue: FEIDE button doesn't appear on login page
+**Cause:** Plugin not configured or JavaScript/CSS not loaded.
 
-**Løsning:**
-1. Sjekk at plugin er aktivert i WordPress
-2. Gå til Settings og fyll inn minst Client ID, Client Secret og Authorize Endpoint
-3. Tøm nettleser-cache og WordPress cache
-4. Sjekk at `assets/css/login.css` og `assets/js/login.js` eksisterer og er lesbare
+**Solution:**
+1. Check that plugin is activated in WordPress
+2. Go to Settings and fill in at least Client ID, Client Secret, and Authorize Endpoint
+3. Clear browser cache and WordPress cache
+4. Check that `assets/css/login.css` and `assets/js/login.js` exist and are readable
 
-#### Problem: "Failed innlogging" eller timeout-feil
-**Årsak:** FEIDE-servere er trege eller utilgjengelige.
+#### Issue: "Failed login" or timeout errors
+**Cause:** FEIDE servers are slow or unavailable.
 
-**Løsning:**
-1. Alle API-kall har 15 sekunders timeout - vent og prøv igjen
-2. Sjekk at FEIDE Dataporten er tilgjengelig: https://status.dataporten.no/
-3. Kontakt FEIDE support hvis problemet vedvarer
+**Solution:**
+1. All API calls have 15-second timeout - wait and try again
+2. Check that FEIDE Dataporten is available: https://status.dataporten.no/
+3. Contact FEIDE support if problem persists
 
-#### Problem: Attributter vises som NULL i test-resultater
-**Årsak:** Feil scope eller attributtet finnes ikke for brukeren.
+#### Issue: Attributes show as NULL in test results
+**Cause:** Wrong scope or attribute doesn't exist for user.
 
-**Løsning:**
-1. Sjekk at scope inkluderer `openid profile email` (minimum)
-2. Noen attributter krever ekstra scopes (f.eks. `groups` for gruppeinformasjon)
-3. Test med en annen FEIDE-bruker som har attributtene
+**Solution:**
+1. Check that scope includes `openid profile email` (minimum)
+2. Some attributes require extra scopes (e.g., `groups` for group information)
+3. Test with another FEIDE user who has the attributes
 
-### Debug-verktøy
+### Debug Tools
 
-#### Aktivere WordPress debug-logging
-Legg til i `wp-config.php`:
+#### Enable WordPress Debug Logging
+Add to `wp-config.php`:
 ```php
 define('WP_DEBUG', true);
 define('WP_DEBUG_LOG', true);
 define('WP_DEBUG_DISPLAY', false);
 ```
 
-Loggfil: `wp-content/debug.log`
+Log file: `wp-content/debug.log`
 
-#### Bruke Test-funksjonen
-1. Gå til **Test Autentisering-fanen**
-2. Klikk "Test FEIDE-innlogging"
-3. Se alle attributter som mottas fra FEIDE
-4. Kopier attributt-stiene direkte til rolle-regler
+#### Using Test Function
+1. Go to **Test Authentication tab**
+2. Click "Test FEIDE Login"
+3. View all attributes received from FEIDE
+4. Copy attribute paths directly to role rules
 
-#### Bruke Debug-fanen
-Debug-fanen viser:
-- **Siste attributter mottatt fra FEIDE** - full JSON-dump
-- **Siste kriterium-sjekk** - detaljert sammenligning av hver regel
-- **Siste tilgangsnekting** - hvorfor en bruker ble nektet tilgang
-- **Lagrede innstillinger** - gjeldende konfigurering
+#### Using Debug Tab
+Debug tab shows:
+- **Latest attributes received from FEIDE** - full JSON dump
+- **Role rule evaluation** - detailed comparison of each rule
+- **Latest access denial** - why a user was denied access
+- **Saved settings** - current configuration
 
-### Kontakt og support
+**Note:** Debug logging must be enabled in Settings for data to be collected.
 
-**For FEIDE-relaterte spørsmål:**
-- FEIDE kundesenter: https://www.feide.no/
-- FEIDE dokumentasjon: https://docs.feide.no/
+### Contact and Support
 
-**For plugin-problemer:**
+**For FEIDE-related questions:**
+- FEIDE support: https://www.feide.no/
+- FEIDE documentation: https://docs.feide.no/
+
+**For plugin issues:**
 - GitHub Issues: https://github.com/myonlyeye/fida/issues
-- Sjekk CHANGELOG.md for kjente problemer
+- Check CHANGELOG.md for known issues
 
-## Tekniske detaljer
+## Technical Details
 
-### Filstruktur
+### File Structure
 ```
 feide-wordpress-auth/
-├── feide-wordpress-auth.php    # Hovedfil med activation/deactivation hooks
-├── uninstall.php                # Cleanup ved avinstallering
+├── feide-wordpress-auth.php    # Main file with activation/deactivation hooks
+├── uninstall.php                # Cleanup on uninstall
 ├── includes/
-│   ├── class-feide-wp-auth.php        # Hovedklasse
-│   └── class-feide-authenticator.php  # Autentiseringslogikk
+│   ├── class-feide-wp-auth.php        # Main class
+│   └── class-feide-authenticator.php  # Authentication logic
 ├── admin/
-│   └── class-feide-admin.php          # Admin-panel (5 faner)
+│   └── class-feide-admin.php          # Admin panel (5 tabs)
 ├── assets/
 │   ├── css/
-│   │   ├── admin.css                  # Admin-panel styling
-│   │   └── login.css                  # Innloggingsside styling
+│   │   ├── admin.css                  # Admin panel styling
+│   │   └── login.css                  # Login page styling
 │   └── js/
-│       ├── admin.js                   # Admin-panel JavaScript
-│       └── login.js                   # Innloggingsside JavaScript
-├── README.md                           # Denne filen
-└── CHANGELOG.md                        # Versjonhistorikk
+│       ├── admin.js                   # Admin panel JavaScript
+│       └── login.js                   # Login page JavaScript
+├── README.md                           # This file
+└── CHANGELOG.md                        # Version history
 ```
 
-### Hooks og Filters
-Pluginen bruker standard WordPress hooks:
-- `plugins_loaded`: Initialiserer plugin
-- `admin_menu`: Legger til admin-meny
-- `admin_init`: Registrerer innstillinger
-- `init`: Håndterer OAuth callback
-- `login_form`: Legger til FEIDE-knapp på innloggingsside
+### Hooks and Filters
+The plugin uses standard WordPress hooks:
+- `plugins_loaded`: Initializes plugin
+- `admin_menu`: Adds admin menu
+- `admin_init`: Registers settings
+- `init`: Handles OAuth callback
+- `login_form`: Adds FEIDE button to login page
 
 ### Database
-Pluginen lagrer innstillinger i WordPress options-tabell:
-- `feide_wp_auth_settings`: Alle plugin-innstillinger
+The plugin stores settings in WordPress options table:
+- `feide_wp_auth_settings`: All plugin settings
 
-Brukermetadata lagres per bruker:
-- `feide_attributes`: Alle FEIDE-attributter fra siste innlogging
-- `feide_last_login`: Tidspunkt for siste innlogging
+User metadata is stored per user:
+- `feide_attributes`: All FEIDE attributes from last login
+- `feide_last_login`: Timestamp of last login
 
 ## Changelog
 
-For full versjonhistorikk og detaljerte endringer, se [CHANGELOG.md](CHANGELOG.md).
+For full version history and detailed changes, see [CHANGELOG.md](CHANGELOG.md).
 
-**Siste versjoner:**
-- **v2.1.0** (2025-01-26) - Wildcard-støtte for attributt-matching
-- **v2.0.0** (2025-01-26) - Stor refaktorering: eksterne assets, cron cleanup, error logging
-- **v1.1.0** - Forbedret FEIDE-knapp design og plassering
-- **v1.0.0** - Første release
+**Latest versions:**
+- **v2.2.0** (2025-01-XX) - Security fixes: Client secret protection, reduced info leakage
+- **v2.1.0** (2025-01-26) - Wildcard support for attribute matching
+- **v2.0.0** (2025-01-26) - Major refactoring: external assets, cron cleanup, error logging
+- **v1.1.0** - Improved FEIDE button design and placement
+- **v1.0.0** - Initial release
 
 ## Credits
 
-**Skapt av:** Odin & Claude
+**Created by:** Odin & Claude
 
-Denne pluginen er et samarbeid mellom:
-- **Odin** - Prosjektvisjon, krav, testing og domeneekspertise
-- **Claude** (Anthropic) - Kodeimplementering, arkitektur og dokumentasjon
+This plugin is a collaboration between:
+- **Odin** - Project vision, requirements, testing, and domain expertise
+- **Claude** (Anthropic) - Code implementation, architecture, and documentation
 
-Et eksempel på hva menneskelig kreativitet og AI-kapasitet kan oppnå sammen! 🚀
+An example of what human creativity and AI capabilities can achieve together! 🚀
 
-## Lisens
+## License
 
 GPL v2 or later
 
 ## Support
 
-For spørsmål eller problemer, opprett en issue på GitHub:
+For questions or issues, create an issue on GitHub:
 https://github.com/myonlyeye/fida/issues
 
-## Bidrag
+## Contributing
 
-Bidrag er velkommen! Send gjerne pull requests.
+Contributions are welcome! Feel free to send pull requests.
 
 ---
 
