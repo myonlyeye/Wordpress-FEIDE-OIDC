@@ -15,6 +15,52 @@ This plugin is a collaboration between:
 
 A testament to what human creativity and AI capabilities can achieve together! 🚀
 
+## [2.4.0] - 2025-11-14
+
+### Added
+- **Settings Import/Export functionality** - New dedicated tab for migrating configurations between environments
+  - **Export with granular control** - Choose exactly what to export:
+    - OpenID Connect settings (endpoints, scope)
+    - Credentials (Client ID/Secret) with security warning
+    - Attribute mapping configuration
+    - Role assignment rules
+    - User settings (auto-create, default role, etc.)
+  - **Smart Import with preview** - See what will be imported before confirming
+    - JSON file upload with validation
+    - Visual preview of changes
+    - Automatic backup before import
+    - Error handling and validation
+  - **URL Replacement Tool** - Migrate between dev/staging/prod environments
+    - Find and replace URLs across all settings
+    - Batch update redirect URIs, endpoints, and custom URLs
+    - Perfect for environment migrations
+  - **Automatic Backup System**
+    - Backup created automatically before each import
+    - One-click restore from backup
+    - Download backup as JSON file
+    - Manual backup deletion
+
+### Features
+- **Export formats** - Clean JSON files with version tracking
+- **Import validation** - Ensures data integrity before applying changes
+- **Security warnings** - Clear alerts when exporting sensitive credentials
+- **User-friendly interface** - Two-column layout with clear instructions
+- **Progress feedback** - Success/error messages for all operations
+
+### Use Cases
+- **Environment Migration** - Easily move settings from dev to staging to production
+- **Configuration Backup** - Create snapshots of your configuration
+- **Multi-site Setup** - Replicate settings across multiple WordPress installations
+- **Disaster Recovery** - Quickly restore working configurations
+- **Team Collaboration** - Share configuration templates (excluding credentials)
+
+### Technical Implementation
+- 6 new AJAX endpoints for import/export operations
+- Nonce-protected with capability checks
+- JSON-based configuration format
+- Automatic WordPress options backup
+- Clean error handling and user feedback
+
 ## [2.3.0] - 2025-11-14
 
 ### Security
@@ -211,6 +257,7 @@ Features planned for future releases:
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| **2.4.0** | 2025-11-14 | 📦 Settings Import/Export: Environment migration & backup system |
 | **2.3.0** | 2025-11-14 | 🔐 Critical OAuth security fix: Cryptographically secure state generation |
 | **2.2.0** | 2025-01-27 | 🔒 Security fixes: Client secret protection, debug toggle |
 | **2.1.0** | 2025-01-26 | 🌟 Wildcard support for attribute matching |
@@ -219,6 +266,16 @@ Features planned for future releases:
 | **1.0.0** | 2025-01-XX | 🎉 Initial release with full FEIDE authentication |
 
 ## Upgrade Path
+
+### From 2.3 to 2.4
+- **New features** - Import/Export functionality for easy configuration management
+- No breaking changes - fully backward compatible
+- No action required after update
+- New capabilities:
+  - Export settings for backup or migration
+  - Import settings from other installations
+  - URL replacement tool for environment migration
+  - Automatic backup before imports
 
 ### From 2.2 to 2.3 (CRITICAL SECURITY UPDATE)
 - **Critical OAuth security fix** - Update immediately to fix state parameter vulnerability

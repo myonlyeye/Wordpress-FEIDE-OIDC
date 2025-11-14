@@ -68,6 +68,23 @@ This plugin allows you to integrate FEIDE authentication into WordPress, with ad
 - Secure error handling (no sensitive data exposure)
 - Configurable redirect after login
 
+### Settings Import/Export
+- **Export configurations** - Create JSON backups of your settings
+  - Granular control: Choose what to export (credentials, mappings, rules)
+  - Security warnings for sensitive data
+  - Version tracking in export files
+- **Import configurations** - Restore or migrate settings
+  - Preview changes before importing
+  - Automatic backup creation
+  - JSON validation
+- **URL Replacement Tool** - Migrate between environments
+  - Batch replace URLs (dev → staging → prod)
+  - Updates redirect URIs, endpoints, and custom URLs
+- **Automatic Backup System**
+  - Pre-import backups
+  - One-click restore
+  - Download/delete backups
+
 ## Installation
 
 1. Download or clone this repository to your WordPress plugins folder:
@@ -173,6 +190,56 @@ This matches if the user is a member of ONE OR MORE groups where at least one gr
 - ✅ Works automatically even if number of groups changes
 - ✅ Easier maintenance
 
+### 5. Import/Export
+
+Go to the "Import/Export" tab to manage configuration backups and migrations.
+
+#### Exporting Settings
+1. Select what to export:
+   - ☑ OpenID Settings (endpoints, scope) - **Recommended**
+   - ☐ Client ID and Secret - **Use with caution** (sensitive data)
+   - ☑ Attribute Mapping - **Recommended**
+   - ☑ Role Rules - **Recommended**
+   - ☑ User Settings - **Recommended**
+2. Click "Download settings (JSON)"
+3. Save the JSON file securely
+
+**Security Note:** Only check "Client ID and Secret" if you need to migrate complete credentials. Never commit this file to public repositories.
+
+#### Importing Settings
+1. Click "Choose JSON file" and select your exported settings file
+2. Review the preview of what will be imported
+3. Click "Import settings"
+4. Automatic backup is created before import
+5. Page refreshes with new settings applied
+
+**Note:** Import will overwrite existing settings. Use the automatic backup feature to restore if needed.
+
+#### URL Replacement Tool
+Perfect for migrating between environments (dev → staging → prod):
+
+1. **Find URL**: Enter the old URL (e.g., `https://dev.example.com`)
+2. **Replace with**: Enter the new URL (e.g., `https://prod.example.com`)
+3. Click "Replace URLs"
+
+This will update:
+- Redirect URI
+- All OAuth endpoints
+- Custom redirect after login
+
+#### Backup Management
+- **Automatic backups**: Created before each import
+- **Restore**: One-click restoration from backup
+- **Download**: Save backup as JSON file
+- **Delete**: Remove old backups when no longer needed
+
+**Use Cases:**
+- 🔄 **Environment Migration**: Move from dev to staging to production
+- 💾 **Configuration Backup**: Create snapshots before making changes
+- 🏢 **Multi-site Setup**: Replicate settings across installations
+- 🚑 **Disaster Recovery**: Quickly restore working configurations
+- 👥 **Team Collaboration**: Share configuration templates (excluding credentials)
+
 ## Usage
 
 ### For End Users
@@ -199,6 +266,12 @@ The plugin implements several security measures:
 - **Toggleable debug logging**: Privacy-friendly data collection
 
 ### Security Updates
+
+**Version 2.4.0** adds settings management:
+- **Import/Export with security controls** - Export settings with granular control over sensitive data
+- Security warnings when exporting credentials
+- Automatic backups before imports
+- URL replacement for safe environment migration
 
 **Version 2.3.0** includes critical OAuth security fix:
 - **Fixed OAuth state parameter generation** - Now uses cryptographically secure random values
@@ -334,7 +407,7 @@ feide-wordpress-auth/
 │   ├── class-feide-wp-auth.php        # Main class
 │   └── class-feide-authenticator.php  # Authentication logic
 ├── admin/
-│   └── class-feide-admin.php          # Admin panel (5 tabs)
+│   └── class-feide-admin.php          # Admin panel (6 tabs)
 ├── assets/
 │   ├── css/
 │   │   ├── admin.css                  # Admin panel styling
@@ -367,6 +440,7 @@ User metadata is stored per user:
 For full version history and detailed changes, see [CHANGELOG.md](CHANGELOG.md).
 
 **Latest versions:**
+- **v2.4** - Settings Import/Export: Environment migration & backup system
 - **v2.3** - Critical OAuth security fix: Cryptographically secure state generation
 - **v2.2** - Security fixes: Client secret protection, reduced info leakage
 - **v2.1** - Wildcard support for attribute matching

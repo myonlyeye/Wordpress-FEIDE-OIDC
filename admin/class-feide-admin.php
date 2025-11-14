@@ -13,6 +13,14 @@ class Feide_WP_Auth_Admin {
         add_action('admin_menu', array($this, 'add_admin_menu'));
         add_action('admin_init', array($this, 'register_settings'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_scripts'));
+
+        // Import/Export AJAX handlers
+        add_action('wp_ajax_feide_export_settings', array($this, 'ajax_export_settings'));
+        add_action('wp_ajax_feide_import_settings', array($this, 'ajax_import_settings'));
+        add_action('wp_ajax_feide_replace_urls', array($this, 'ajax_replace_urls'));
+        add_action('wp_ajax_feide_restore_backup', array($this, 'ajax_restore_backup'));
+        add_action('wp_ajax_feide_download_backup', array($this, 'ajax_download_backup'));
+        add_action('wp_ajax_feide_delete_backup', array($this, 'ajax_delete_backup'));
     }
 
     /**
@@ -194,6 +202,9 @@ class Feide_WP_Auth_Admin {
                 <a href="?page=feide-wp-auth&tab=roles" class="nav-tab <?php echo $active_tab === 'roles' ? 'nav-tab-active' : ''; ?>">
                     Rolletildeling
                 </a>
+                <a href="?page=feide-wp-auth&tab=import-export" class="nav-tab <?php echo $active_tab === 'import-export' ? 'nav-tab-active' : ''; ?>">
+                    Import/Eksport
+                </a>
                 <a href="?page=feide-wp-auth&tab=debug" class="nav-tab <?php echo $active_tab === 'debug' ? 'nav-tab-active' : ''; ?>">
                     Debug
                 </a>
@@ -212,6 +223,9 @@ class Feide_WP_Auth_Admin {
                         break;
                     case 'roles':
                         $this->render_roles_tab($settings);
+                        break;
+                    case 'import-export':
+                        $this->render_import_export_tab($settings);
                         break;
                     case 'debug':
                         $this->render_debug_tab($settings);
@@ -978,6 +992,407 @@ class Feide_WP_Auth_Admin {
     }
 
     /**
+     * Render import/eksport-fane
+     */
+    private function render_import_export_tab($settings) {
+        ?>
+        <h2>Import og Eksport av Innstillinger</h2>
+        <p>Eksporter og importer plugin-innstillinger for å migrere mellom miljøer eller lage backups.</p>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 30px;">
+
+            <!-- EKSPORT SEKSJONEN -->
+            <div style="background: #fff; border: 1px solid #ccd0d4; padding: 20px; box-shadow: 0 1px 1px rgba(0,0,0,.04);">
+                <h3 style="margin-top: 0;">📤 Eksporter Innstillinger</h3>
+                <p>Last ned dine nåværende innstillinger som en JSON-fil.</p>
+
+                <div style="background: #f0f6fc; border-left: 4px solid #0969da; padding: 12px; margin: 15px 0;">
+                    <strong>Velg hva som skal eksporteres:</strong>
+                    <div style="margin-top: 10px;">
+                        <label style="display: block; margin: 8px 0;">
+                            <input type="checkbox" id="export_openid_settings" checked>
+                            OpenID Connect innstillinger (endpoints, scope, etc.)
+                        </label>
+                        <label style="display: block; margin: 8px 0;">
+                            <input type="checkbox" id="export_credentials">
+                            <strong style="color: #d63d00;">Client ID og Secret</strong>
+                            <span style="color: #666; font-size: 0.9em;">(Sensitiv data - vær forsiktig!)</span>
+                        </label>
+                        <label style="display: block; margin: 8px 0;">
+                            <input type="checkbox" id="export_attribute_mapping" checked>
+                            Attributt-mapping
+                        </label>
+                        <label style="display: block; margin: 8px 0;">
+                            <input type="checkbox" id="export_role_rules" checked>
+                            Rolletildelingsregler
+                        </label>
+                        <label style="display: block; margin: 8px 0;">
+                            <input type="checkbox" id="export_user_settings" checked>
+                            Brukerinnstillinger (auto-create, default role, etc.)
+                        </label>
+                    </div>
+                </div>
+
+                <div id="credentials-warning" style="display: none; background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin: 15px 0;">
+                    <strong>⚠️ Sikkerhetsadvarsel:</strong>
+                    <p style="margin: 5px 0 0 0;">Client Secret er sensitiv informasjon. Ikke del denne filen offentlig eller lagre den usikkert.</p>
+                </div>
+
+                <button type="button" id="export-settings-btn" class="button button-primary" style="margin-top: 15px;">
+                    📥 Last ned innstillinger (JSON)
+                </button>
+            </div>
+
+            <!-- IMPORT SEKSJONEN -->
+            <div style="background: #fff; border: 1px solid #ccd0d4; padding: 20px; box-shadow: 0 1px 1px rgba(0,0,0,.04);">
+                <h3 style="margin-top: 0;">📥 Importer Innstillinger</h3>
+                <p>Last opp en tidligere eksportert JSON-fil for å gjenopprette innstillinger.</p>
+
+                <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin: 15px 0;">
+                    <strong>⚠️ Viktig:</strong>
+                    <p style="margin: 5px 0 0 0;">Import vil <strong>overskrive</strong> eksisterende innstillinger. En backup opprettes automatisk.</p>
+                </div>
+
+                <div style="margin: 20px 0;">
+                    <label for="import-file-input" style="display: block; margin-bottom: 10px; font-weight: 600;">
+                        Velg JSON-fil:
+                    </label>
+                    <input type="file" id="import-file-input" accept=".json" style="margin-bottom: 15px;">
+                </div>
+
+                <div id="import-preview" style="display: none; background: #f0f6fc; border: 1px solid #0969da; padding: 15px; margin: 15px 0; max-height: 300px; overflow-y: auto;">
+                    <h4 style="margin-top: 0;">Forhåndsvisning av import:</h4>
+                    <div id="import-preview-content"></div>
+                </div>
+
+                <div style="margin-top: 15px;">
+                    <button type="button" id="import-settings-btn" class="button button-primary" disabled>
+                        📤 Importer innstillinger
+                    </button>
+                    <button type="button" id="cancel-import-btn" class="button" style="display: none; margin-left: 10px;">
+                        Avbryt
+                    </button>
+                </div>
+
+                <div id="import-result" style="margin-top: 15px;"></div>
+            </div>
+        </div>
+
+        <!-- URL REPLACEMENT TOOL -->
+        <div style="background: #fff; border: 1px solid #ccd0d4; padding: 20px; margin-top: 30px; box-shadow: 0 1px 1px rgba(0,0,0,.04);">
+            <h3 style="margin-top: 0;">🔄 URL Erstatningsverktøy</h3>
+            <p>Bytt ut URL-er i innstillingene (nyttig ved migrering mellom dev/staging/prod).</p>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; align-items: end;">
+                <div>
+                    <label for="url-find" style="display: block; margin-bottom: 5px; font-weight: 600;">
+                        Finn URL:
+                    </label>
+                    <input type="text" id="url-find" class="regular-text" placeholder="https://dev.example.com" style="width: 100%;">
+                </div>
+                <div>
+                    <label for="url-replace" style="display: block; margin-bottom: 5px; font-weight: 600;">
+                        Erstatt med:
+                    </label>
+                    <input type="text" id="url-replace" class="regular-text" placeholder="https://prod.example.com" style="width: 100%;">
+                </div>
+                <div>
+                    <button type="button" id="url-replace-btn" class="button">
+                        Erstatt URL-er
+                    </button>
+                </div>
+            </div>
+
+            <div id="url-replace-result" style="margin-top: 15px;"></div>
+        </div>
+
+        <!-- BACKUP SEKSJONEN -->
+        <div style="background: #fff; border: 1px solid #ccd0d4; padding: 20px; margin-top: 30px; box-shadow: 0 1px 1px rgba(0,0,0,.04);">
+            <h3 style="margin-top: 0;">💾 Automatiske Backups</h3>
+            <p>Før hver import opprettes en automatisk backup som kan gjenopprettes.</p>
+
+            <?php
+            $backup = get_option('feide_wp_auth_settings_backup');
+            $backup_time = get_option('feide_wp_auth_settings_backup_time');
+            ?>
+
+            <?php if ($backup && $backup_time): ?>
+                <div style="background: #d4edda; border-left: 4px solid #28a745; padding: 12px; margin: 15px 0;">
+                    <strong>✅ Backup tilgjengelig</strong><br>
+                    Opprettet: <?php echo date('d.m.Y H:i:s', $backup_time); ?>
+                    <button type="button" id="restore-backup-btn" class="button" style="margin-left: 15px;">
+                        🔄 Gjenopprett backup
+                    </button>
+                    <button type="button" id="download-backup-btn" class="button" style="margin-left: 5px;">
+                        📥 Last ned backup
+                    </button>
+                    <button type="button" id="delete-backup-btn" class="button" style="margin-left: 5px;">
+                        🗑️ Slett backup
+                    </button>
+                </div>
+            <?php else: ?>
+                <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px;">
+                    <strong>ℹ️ Ingen backup tilgjengelig</strong><br>
+                    En backup vil opprettes automatisk neste gang du importerer innstillinger.
+                </div>
+            <?php endif; ?>
+        </div>
+
+        <script type="text/javascript">
+        jQuery(document).ready(function($) {
+
+            // Toggle credentials warning
+            $('#export_credentials').on('change', function() {
+                if ($(this).is(':checked')) {
+                    $('#credentials-warning').slideDown();
+                } else {
+                    $('#credentials-warning').slideUp();
+                }
+            });
+
+            // EKSPORT FUNKSJONALITET
+            $('#export-settings-btn').on('click', function() {
+                var exportOptions = {
+                    openid_settings: $('#export_openid_settings').is(':checked'),
+                    credentials: $('#export_credentials').is(':checked'),
+                    attribute_mapping: $('#export_attribute_mapping').is(':checked'),
+                    role_rules: $('#export_role_rules').is(':checked'),
+                    user_settings: $('#export_user_settings').is(':checked')
+                };
+
+                $.ajax({
+                    url: ajaxurl,
+                    type: 'POST',
+                    data: {
+                        action: 'feide_export_settings',
+                        nonce: '<?php echo wp_create_nonce('feide_import_export'); ?>',
+                        options: exportOptions
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            // Opprett og last ned fil
+                            var dataStr = JSON.stringify(response.data, null, 2);
+                            var dataBlob = new Blob([dataStr], {type: 'application/json'});
+                            var url = URL.createObjectURL(dataBlob);
+                            var link = document.createElement('a');
+                            link.href = url;
+                            link.download = 'feide-settings-' + new Date().toISOString().split('T')[0] + '.json';
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            URL.revokeObjectURL(url);
+
+                            alert('Innstillinger eksportert!');
+                        } else {
+                            alert('Feil ved eksport: ' + response.data);
+                        }
+                    },
+                    error: function() {
+                        alert('Feil ved kommunikasjon med serveren.');
+                    }
+                });
+            });
+
+            // IMPORT FUNKSJONALITET - Fil valgt
+            $('#import-file-input').on('change', function(e) {
+                var file = e.target.files[0];
+                if (!file) return;
+
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        var data = JSON.parse(e.target.result);
+                        displayImportPreview(data);
+                        $('#import-settings-btn').prop('disabled', false);
+                        $('#cancel-import-btn').show();
+                    } catch(err) {
+                        alert('Ugyldig JSON-fil: ' + err.message);
+                        $('#import-file-input').val('');
+                    }
+                };
+                reader.readAsText(file);
+            });
+
+            // Vis forhåndsvisning av import
+            function displayImportPreview(data) {
+                var html = '<ul style="margin: 0; padding-left: 20px;">';
+
+                if (data.client_id) html += '<li>Client ID: <code>' + data.client_id.substring(0, 20) + '...</code></li>';
+                if (data.client_secret) html += '<li>Client Secret: <strong style="color: #d63d00;">JA (sensitiv data)</strong></li>';
+                if (data.redirect_uri) html += '<li>Redirect URI: <code>' + data.redirect_uri + '</code></li>';
+                if (data.attribute_mapping) html += '<li>Attributt-mapping: <strong>' + Object.keys(data.attribute_mapping).length + ' felt</strong></li>';
+                if (data.role_rules) html += '<li>Rolle-regler: <strong>' + data.role_rules.length + ' regler</strong></li>';
+                if (data.default_role) html += '<li>Standard rolle: <code>' + data.default_role + '</code></li>';
+
+                html += '</ul>';
+                $('#import-preview-content').html(html);
+                $('#import-preview').slideDown();
+            }
+
+            // Avbryt import
+            $('#cancel-import-btn').on('click', function() {
+                $('#import-file-input').val('');
+                $('#import-preview').slideUp();
+                $('#import-settings-btn').prop('disabled', true);
+                $(this).hide();
+                $('#import-result').html('');
+            });
+
+            // IMPORTER INNSTILLINGER
+            $('#import-settings-btn').on('click', function() {
+                if (!confirm('Dette vil overskrive nåværende innstillinger. En backup vil opprettes automatisk. Fortsette?')) {
+                    return;
+                }
+
+                var file = $('#import-file-input')[0].files[0];
+                var reader = new FileReader();
+
+                reader.onload = function(e) {
+                    var settings = e.target.result;
+
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'feide_import_settings',
+                            nonce: '<?php echo wp_create_nonce('feide_import_export'); ?>',
+                            settings: settings
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                $('#import-result').html('<div style="background: #d4edda; border-left: 4px solid #28a745; padding: 12px; margin-top: 15px;"><strong>✅ Innstillinger importert!</strong><br>Siden oppdateres om 2 sekunder...</div>');
+                                setTimeout(function() {
+                                    location.reload();
+                                }, 2000);
+                            } else {
+                                $('#import-result').html('<div style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 12px; margin-top: 15px;"><strong>❌ Feil:</strong> ' + response.data + '</div>');
+                            }
+                        },
+                        error: function() {
+                            $('#import-result').html('<div style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 12px; margin-top: 15px;"><strong>❌ Feil ved kommunikasjon med serveren.</strong></div>');
+                        }
+                    });
+                };
+                reader.readAsText(file);
+            });
+
+            // URL REPLACEMENT TOOL
+            $('#url-replace-btn').on('click', function() {
+                var findUrl = $('#url-find').val();
+                var replaceUrl = $('#url-replace').val();
+
+                if (!findUrl || !replaceUrl) {
+                    alert('Vennligst fyll ut begge URL-feltene.');
+                    return;
+                }
+
+                if (!confirm('Dette vil erstatte "' + findUrl + '" med "' + replaceUrl + '" i alle innstillinger. Fortsette?')) {
+                    return;
+                }
+
+                $.ajax({
+                    url: ajaxurl,
+                    type: 'POST',
+                    data: {
+                        action: 'feide_replace_urls',
+                        nonce: '<?php echo wp_create_nonce('feide_import_export'); ?>',
+                        find: findUrl,
+                        replace: replaceUrl
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            $('#url-replace-result').html('<div style="background: #d4edda; border-left: 4px solid #28a745; padding: 12px;"><strong>✅ URL-er erstattet!</strong><br>' + response.data.message + '<br>Siden oppdateres om 2 sekunder...</div>');
+                            setTimeout(function() {
+                                location.reload();
+                            }, 2000);
+                        } else {
+                            $('#url-replace-result').html('<div style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 12px;"><strong>❌ Feil:</strong> ' + response.data + '</div>');
+                        }
+                    }
+                });
+            });
+
+            // RESTORE BACKUP
+            $('#restore-backup-btn').on('click', function() {
+                if (!confirm('Dette vil gjenopprette innstillingene fra backup og overskrive nåværende innstillinger. Fortsette?')) {
+                    return;
+                }
+
+                $.ajax({
+                    url: ajaxurl,
+                    type: 'POST',
+                    data: {
+                        action: 'feide_restore_backup',
+                        nonce: '<?php echo wp_create_nonce('feide_import_export'); ?>'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            alert('Backup gjenopprettet! Siden oppdateres...');
+                            location.reload();
+                        } else {
+                            alert('Feil ved gjenoppretting: ' + response.data);
+                        }
+                    }
+                });
+            });
+
+            // DOWNLOAD BACKUP
+            $('#download-backup-btn').on('click', function() {
+                $.ajax({
+                    url: ajaxurl,
+                    type: 'POST',
+                    data: {
+                        action: 'feide_download_backup',
+                        nonce: '<?php echo wp_create_nonce('feide_import_export'); ?>'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            var dataStr = JSON.stringify(response.data, null, 2);
+                            var dataBlob = new Blob([dataStr], {type: 'application/json'});
+                            var url = URL.createObjectURL(dataBlob);
+                            var link = document.createElement('a');
+                            link.href = url;
+                            link.download = 'feide-backup-' + new Date().toISOString().split('T')[0] + '.json';
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            URL.revokeObjectURL(url);
+                        } else {
+                            alert('Feil ved nedlasting av backup: ' + response.data);
+                        }
+                    }
+                });
+            });
+
+            // DELETE BACKUP
+            $('#delete-backup-btn').on('click', function() {
+                if (!confirm('Er du sikker på at du vil slette backupen?')) {
+                    return;
+                }
+
+                $.ajax({
+                    url: ajaxurl,
+                    type: 'POST',
+                    data: {
+                        action: 'feide_delete_backup',
+                        nonce: '<?php echo wp_create_nonce('feide_import_export'); ?>'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            alert('Backup slettet!');
+                            location.reload();
+                        } else {
+                            alert('Feil ved sletting: ' + response.data);
+                        }
+                    }
+                });
+            });
+        });
+        </script>
+        <?php
+    }
+
+    /**
      * Slett all debug-data
      */
     private function clear_debug_data() {
@@ -989,5 +1404,216 @@ class Feide_WP_Auth_Admin {
         if (WP_DEBUG) {
             error_log('FEIDE Auth: All debug data cleared');
         }
+    }
+
+    /**
+     * AJAX: Eksporter innstillinger
+     */
+    public function ajax_export_settings() {
+        check_ajax_referer('feide_import_export', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Ingen tilgang');
+        }
+
+        $settings = get_option('feide_wp_auth_settings', array());
+        $options = isset($_POST['options']) ? $_POST['options'] : array();
+
+        $export = array();
+        $export['_export_version'] = '2.4.0';
+        $export['_export_date'] = date('Y-m-d H:i:s');
+
+        // OpenID Settings
+        if (!empty($options['openid_settings'])) {
+            $export['authorize_endpoint'] = isset($settings['authorize_endpoint']) ? $settings['authorize_endpoint'] : '';
+            $export['token_endpoint'] = isset($settings['token_endpoint']) ? $settings['token_endpoint'] : '';
+            $export['userinfo_endpoint'] = isset($settings['userinfo_endpoint']) ? $settings['userinfo_endpoint'] : '';
+            $export['groupinfo_endpoint'] = isset($settings['groupinfo_endpoint']) ? $settings['groupinfo_endpoint'] : '';
+            $export['scope'] = isset($settings['scope']) ? $settings['scope'] : '';
+            $export['redirect_uri'] = isset($settings['redirect_uri']) ? $settings['redirect_uri'] : '';
+        }
+
+        // Credentials (kun hvis eksplisitt valgt)
+        if (!empty($options['credentials'])) {
+            $export['client_id'] = isset($settings['client_id']) ? $settings['client_id'] : '';
+            $export['client_secret'] = isset($settings['client_secret']) ? $settings['client_secret'] : '';
+        }
+
+        // Attribute Mapping
+        if (!empty($options['attribute_mapping'])) {
+            $export['attribute_mapping'] = isset($settings['attribute_mapping']) ? $settings['attribute_mapping'] : array();
+        }
+
+        // Role Rules
+        if (!empty($options['role_rules'])) {
+            $export['role_rules'] = isset($settings['role_rules']) ? $settings['role_rules'] : array();
+        }
+
+        // User Settings
+        if (!empty($options['user_settings'])) {
+            $export['auto_create_users'] = isset($settings['auto_create_users']) ? $settings['auto_create_users'] : false;
+            $export['allow_all_authenticated'] = isset($settings['allow_all_authenticated']) ? $settings['allow_all_authenticated'] : false;
+            $export['default_role'] = isset($settings['default_role']) ? $settings['default_role'] : 'subscriber';
+            $export['redirect_after_login'] = isset($settings['redirect_after_login']) ? $settings['redirect_after_login'] : '';
+            $export['enable_debug_logging'] = isset($settings['enable_debug_logging']) ? $settings['enable_debug_logging'] : false;
+        }
+
+        wp_send_json_success($export);
+    }
+
+    /**
+     * AJAX: Importer innstillinger
+     */
+    public function ajax_import_settings() {
+        check_ajax_referer('feide_import_export', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Ingen tilgang');
+        }
+
+        $import_json = isset($_POST['settings']) ? stripslashes($_POST['settings']) : '';
+        $import = json_decode($import_json, true);
+
+        if (!$import) {
+            wp_send_json_error('Ugyldig JSON-data');
+        }
+
+        // Opprett backup av nåværende innstillinger
+        $current_settings = get_option('feide_wp_auth_settings', array());
+        update_option('feide_wp_auth_settings_backup', $current_settings);
+        update_option('feide_wp_auth_settings_backup_time', time());
+
+        // Hent eksisterende innstillinger
+        $settings = get_option('feide_wp_auth_settings', array());
+
+        // Merge med importerte innstillinger
+        $fields_to_import = array(
+            'client_id', 'client_secret', 'redirect_uri', 'scope',
+            'authorize_endpoint', 'token_endpoint', 'userinfo_endpoint', 'groupinfo_endpoint',
+            'auto_create_users', 'allow_all_authenticated', 'default_role',
+            'attribute_mapping', 'role_rules', 'redirect_after_login', 'enable_debug_logging'
+        );
+
+        foreach ($fields_to_import as $field) {
+            if (isset($import[$field])) {
+                $settings[$field] = $import[$field];
+            }
+        }
+
+        // Lagre oppdaterte innstillinger
+        update_option('feide_wp_auth_settings', $settings);
+
+        if (WP_DEBUG) {
+            error_log('FEIDE Auth: Settings imported successfully');
+        }
+
+        wp_send_json_success('Innstillinger importert');
+    }
+
+    /**
+     * AJAX: Erstatt URL-er
+     */
+    public function ajax_replace_urls() {
+        check_ajax_referer('feide_import_export', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Ingen tilgang');
+        }
+
+        $find = isset($_POST['find']) ? $_POST['find'] : '';
+        $replace = isset($_POST['replace']) ? $_POST['replace'] : '';
+
+        if (empty($find) || empty($replace)) {
+            wp_send_json_error('Vennligst fyll ut begge feltene');
+        }
+
+        $settings = get_option('feide_wp_auth_settings', array());
+        $replaced_count = 0;
+
+        // Felt som kan inneholde URL-er
+        $url_fields = array(
+            'redirect_uri', 'authorize_endpoint', 'token_endpoint',
+            'userinfo_endpoint', 'groupinfo_endpoint', 'redirect_after_login'
+        );
+
+        foreach ($url_fields as $field) {
+            if (isset($settings[$field]) && strpos($settings[$field], $find) !== false) {
+                $settings[$field] = str_replace($find, $replace, $settings[$field]);
+                $replaced_count++;
+            }
+        }
+
+        if ($replaced_count > 0) {
+            update_option('feide_wp_auth_settings', $settings);
+            wp_send_json_success(array(
+                'message' => "Erstattet URL-er i $replaced_count felt."
+            ));
+        } else {
+            wp_send_json_error('Ingen URL-er ble funnet som matcher søket');
+        }
+    }
+
+    /**
+     * AJAX: Gjenopprett backup
+     */
+    public function ajax_restore_backup() {
+        check_ajax_referer('feide_import_export', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Ingen tilgang');
+        }
+
+        $backup = get_option('feide_wp_auth_settings_backup');
+
+        if (!$backup) {
+            wp_send_json_error('Ingen backup tilgjengelig');
+        }
+
+        update_option('feide_wp_auth_settings', $backup);
+
+        if (WP_DEBUG) {
+            error_log('FEIDE Auth: Settings restored from backup');
+        }
+
+        wp_send_json_success('Backup gjenopprettet');
+    }
+
+    /**
+     * AJAX: Last ned backup
+     */
+    public function ajax_download_backup() {
+        check_ajax_referer('feide_import_export', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Ingen tilgang');
+        }
+
+        $backup = get_option('feide_wp_auth_settings_backup');
+
+        if (!$backup) {
+            wp_send_json_error('Ingen backup tilgjengelig');
+        }
+
+        wp_send_json_success($backup);
+    }
+
+    /**
+     * AJAX: Slett backup
+     */
+    public function ajax_delete_backup() {
+        check_ajax_referer('feide_import_export', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Ingen tilgang');
+        }
+
+        delete_option('feide_wp_auth_settings_backup');
+        delete_option('feide_wp_auth_settings_backup_time');
+
+        if (WP_DEBUG) {
+            error_log('FEIDE Auth: Backup deleted');
+        }
+
+        wp_send_json_success('Backup slettet');
     }
 }
