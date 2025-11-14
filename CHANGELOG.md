@@ -15,6 +15,34 @@ This plugin is a collaboration between:
 
 A testament to what human creativity and AI capabilities can achieve together! 🚀
 
+## [2.3.0] - 2025-11-14
+
+### Security
+- **CRITICAL: Fixed OAuth state parameter generation** - State parameter now uses cryptographically secure random values instead of deterministic nonces
+  - Replaced `wp_create_nonce()` with `wp_generate_password(32, false)` for true randomness
+  - Prevents potential race condition attacks where authorization codes could be intercepted and replayed
+  - Eliminates predictability in state values that could enable MITM attacks
+  - Each authentication request now has a unique, unguessable state parameter
+
+### Changed
+- **Enhanced OAuth security** - State parameter generation now provides proper entropy for OAuth 2.0 security
+  - Protects against authorization code interception
+  - Prevents state parameter prediction
+  - Maintains backward compatibility with existing callback handler
+
+### Technical Details
+The previous implementation used `wp_create_nonce('feide_auth_state')` which generates the same value for all unauthenticated users within a 12-hour window. This created a security vulnerability where:
+- State values were predictable and could be guessed
+- Race condition existed where intercepted authorization codes could be used before the legitimate user
+- MITM attackers could potentially intercept callbacks on insecure networks
+
+The new implementation generates 32 characters of cryptographically secure random data, ensuring each authentication attempt has a unique, unguessable state parameter.
+
+### Recommended Actions
+- **Update immediately** - This is a critical security fix for OAuth flow
+- No configuration changes required
+- Existing functionality remains unchanged
+
 ## [2.2.0] - 2025-01-27
 
 ### Security
@@ -183,6 +211,7 @@ Features planned for future releases:
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| **2.3.0** | 2025-11-14 | 🔐 Critical OAuth security fix: Cryptographically secure state generation |
 | **2.2.0** | 2025-01-27 | 🔒 Security fixes: Client secret protection, debug toggle |
 | **2.1.0** | 2025-01-26 | 🌟 Wildcard support for attribute matching |
 | **2.0.0** | 2025-01-26 | 🔄 Major refactoring: external assets, cron cleanup, error logging |
@@ -190,6 +219,15 @@ Features planned for future releases:
 | **1.0.0** | 2025-01-XX | 🎉 Initial release with full FEIDE authentication |
 
 ## Upgrade Path
+
+### From 2.2 to 2.3 (CRITICAL SECURITY UPDATE)
+- **Critical OAuth security fix** - Update immediately to fix state parameter vulnerability
+- No breaking changes - fully backward compatible
+- No action required after update
+- Protects against:
+  - State parameter prediction attacks
+  - Authorization code interception and replay
+  - MITM attacks on OAuth flow
 
 ### From 2.1 to 2.2 (RECOMMENDED SECURITY UPDATE)
 - **Critical security fixes** - Update immediately if using WP_DEBUG in production

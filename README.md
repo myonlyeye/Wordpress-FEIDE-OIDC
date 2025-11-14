@@ -200,7 +200,13 @@ The plugin implements several security measures:
 
 ### Security Updates
 
-**Version 2.2.0** includes critical security fixes:
+**Version 2.3.0** includes critical OAuth security fix:
+- **Fixed OAuth state parameter generation** - Now uses cryptographically secure random values
+- Prevents state parameter prediction attacks
+- Protects against authorization code interception and replay
+- Eliminates MITM attack vectors in OAuth flow
+
+**Version 2.2.0** included critical security fixes:
 - Removed client secret from debug logs
 - Reduced information leakage in error messages
 - Enhanced security for credential handling
@@ -361,6 +367,7 @@ User metadata is stored per user:
 For full version history and detailed changes, see [CHANGELOG.md](CHANGELOG.md).
 
 **Latest versions:**
+- **v2.3** - Critical OAuth security fix: Cryptographically secure state generation
 - **v2.2** - Security fixes: Client secret protection, reduced info leakage
 - **v2.1** - Wildcard support for attribute matching
 - **v2.0** - Major refactoring: external assets, cron cleanup, error logging

@@ -442,7 +442,8 @@ class Feide_WP_Auth_Admin {
      * Generer test-autentiserings-URL
      */
     private function get_test_auth_url($settings) {
-        $state = wp_create_nonce('feide_test_state');
+        // Generer kryptografisk sikker tilfeldig state-parameter
+        $state = wp_generate_password(32, false);
         set_transient('feide_auth_state_' . $state, true, 600);
         set_transient('feide_test_mode_' . $state, true, 600);
 
