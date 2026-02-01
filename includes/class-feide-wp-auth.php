@@ -94,8 +94,7 @@ class Feide_WP_Auth {
      */
     private function get_authorization_url() {
         // Generer kryptografisk sikker tilfeldig state-parameter
-        $state = wp_generate_password(32, false);
-        set_transient('feide_auth_state_' . $state, true, 600); // 10 minutter
+        $state = Feide_State_Manager::generate_state(false);
 
         $params = array(
             'client_id' => $this->settings['client_id'],

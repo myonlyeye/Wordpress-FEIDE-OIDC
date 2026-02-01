@@ -152,3 +152,22 @@ input#client_secret {
     padding: 12px;
     margin: 15px 0;
 }
+
+/* Inline validation error styles */
+.error-field {
+    border-color: #dc3232 !important;
+    box-shadow: 0 0 2px rgba(220, 50, 50, 0.8) !important;
+}
+
+.field-error {
+    color: #dc3232;
+    font-size: 13px;
+    margin: 5px 0 0 0;
+    font-weight: 600;
+}
+
+/* Required field indicator */
+.required {
+    color: #dc3232;
+    font-weight: bold;
+}

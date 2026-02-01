@@ -189,6 +189,66 @@ class Feide_WP_Auth_Admin {
         <div class="wrap">
             <h1>FEIDE WordPress Autentisering</h1>
 
+            <!-- Configuration Status Widget -->
+            <div class="feide-config-status" style="background: #fff; border: 1px solid #ccd0d4; border-left: 4px solid #2271b1; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                <h3 style="margin-top: 0; display: flex; align-items: center;">
+                    ⚙️ Konfigurasjonsstatus
+                </h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px;">
+                    <?php
+                    $config_checks = array(
+                        'client_id' => array(
+                            'label' => 'Client ID konfigurert',
+                            'required' => true
+                        ),
+                        'client_secret' => array(
+                            'label' => 'Client Secret konfigurert',
+                            'required' => true
+                        ),
+                        'redirect_uri' => array(
+                            'label' => 'Redirect URI satt',
+                            'required' => true
+                        ),
+                        'authorize_endpoint' => array(
+                            'label' => 'Authorize Endpoint satt',
+                            'required' => true
+                        ),
+                        'token_endpoint' => array(
+                            'label' => 'Token Endpoint satt',
+                            'required' => true
+                        ),
+                        'userinfo_endpoint' => array(
+                            'label' => 'Userinfo Endpoint satt',
+                            'required' => true
+                        )
+                    );
+
+                    $all_required_complete = true;
+                    foreach ($config_checks as $key => $check) {
+                        $is_set = !empty($settings[$key]);
+                        if ($check['required'] && !$is_set) {
+                            $all_required_complete = false;
+                        }
+                        $icon = $is_set ? '✅' : ($check['required'] ? '⚠️' : 'ℹ️');
+                        $color = $is_set ? '#28a745' : ($check['required'] ? '#f0ad4e' : '#6c757d');
+                        echo '<div style="padding: 5px 0;">';
+                        echo '<span style="color: ' . $color . ';">' . $icon . '</span> ';
+                        echo esc_html($check['label']);
+                        echo '</div>';
+                    }
+                    ?>
+                </div>
+                <?php if ($all_required_complete): ?>
+                    <p style="margin: 10px 0 0 0; color: #28a745; font-weight: 600;">
+                        ✓ Alle påkrevde innstillinger er konfigurert
+                    </p>
+                <?php else: ?>
+                    <p style="margin: 10px 0 0 0; color: #f0ad4e; font-weight: 600;">
+                        ⚠ Noen påkrevde innstillinger mangler - <a href="?page=feide-wp-auth&tab=settings">konfigurer nå</a>
+                    </p>
+                <?php endif; ?>
+            </div>
+
             <h2 class="nav-tab-wrapper">
                 <a href="?page=feide-wp-auth&tab=settings" class="nav-tab <?php echo $active_tab === 'settings' ? 'nav-tab-active' : ''; ?>">
                     OpenID Innstillinger
@@ -248,32 +308,41 @@ class Feide_WP_Auth_Admin {
         <table class="form-table">
             <tr>
                 <th scope="row">
-                    <label for="client_id">Client ID</label>
+                    <label for="client_id">
+                        Client ID <span class="required">*</span>
+                    </label>
                 </th>
                 <td>
                     <input type="text" id="client_id" name="feide_wp_auth_settings[client_id]"
-                           value="<?php echo esc_attr($settings['client_id'] ?? ''); ?>" class="regular-text">
-                    <p class="description">Client ID fra FEIDE</p>
+                           value="<?php echo esc_attr($settings['client_id'] ?? ''); ?>" class="regular-text"
+                           aria-required="true" required>
+                    <p class="description">Client ID fra FEIDE (påkrevd)</p>
                 </td>
             </tr>
             <tr>
                 <th scope="row">
-                    <label for="client_secret">Client Secret</label>
+                    <label for="client_secret">
+                        Client Secret <span class="required">*</span>
+                    </label>
                 </th>
                 <td>
                     <input type="password" id="client_secret" name="feide_wp_auth_settings[client_secret]"
-                           value="<?php echo esc_attr($settings['client_secret'] ?? ''); ?>" class="regular-text" autocomplete="off">
-                    <p class="description">Client Secret fra FEIDE</p>
+                           value="<?php echo esc_attr($settings['client_secret'] ?? ''); ?>" class="regular-text"
+                           autocomplete="off" aria-required="true" required>
+                    <p class="description">Client Secret fra FEIDE (påkrevd)</p>
                 </td>
             </tr>
             <tr>
                 <th scope="row">
-                    <label for="redirect_uri">Redirect / Callback URL</label>
+                    <label for="redirect_uri">
+                        Redirect / Callback URL <span class="required">*</span>
+                    </label>
                 </th>
                 <td>
                     <input type="text" id="redirect_uri" name="feide_wp_auth_settings[redirect_uri]"
-                           value="<?php echo esc_attr($settings['redirect_uri'] ?? site_url('/wp-login.php?feide-auth=callback')); ?>" class="regular-text">
-                    <p class="description">Denne URL-en må være registrert hos FEIDE</p>
+                           value="<?php echo esc_attr($settings['redirect_uri'] ?? site_url('/wp-login.php?feide-auth=callback')); ?>" class="regular-text"
+                           aria-required="true" required>
+                    <p class="description">Denne URL-en må være registrert hos FEIDE (påkrevd)</p>
                 </td>
             </tr>
             <tr>
@@ -457,9 +526,7 @@ class Feide_WP_Auth_Admin {
      */
     private function get_test_auth_url($settings) {
         // Generer kryptografisk sikker tilfeldig state-parameter
-        $state = wp_generate_password(32, false);
-        set_transient('feide_auth_state_' . $state, true, 600);
-        set_transient('feide_test_mode_' . $state, true, 600);
+        $state = Feide_State_Manager::generate_state(true);
 
         $params = array(
             'client_id' => $settings['client_id'],
@@ -1152,6 +1219,13 @@ class Feide_WP_Auth_Admin {
 
             // EKSPORT FUNKSJONALITET
             $('#export-settings-btn').on('click', function() {
+                var $btn = $(this);
+                var originalText = $btn.html();
+
+                // Disable button and show loading state
+                $btn.prop('disabled', true);
+                $btn.html('<span class="spinner is-active" style="float: none; margin: 0 5px 0 0;"></span> Eksporterer...');
+
                 var exportOptions = {
                     openid_settings: $('#export_openid_settings').is(':checked'),
                     credentials: $('#export_credentials').is(':checked'),
@@ -1182,13 +1256,20 @@ class Feide_WP_Auth_Admin {
                             document.body.removeChild(link);
                             URL.revokeObjectURL(url);
 
-                            alert('Innstillinger eksportert!');
+                            // Show success notification instead of alert
+                            $('<div class="notice notice-success is-dismissible" style="margin: 15px 0;"><p>✅ Innstillinger eksportert!</p></div>').insertAfter($btn);
                         } else {
                             alert('Feil ved eksport: ' + response.data);
                         }
+                        // Re-enable button
+                        $btn.prop('disabled', false);
+                        $btn.html(originalText);
                     },
                     error: function() {
                         alert('Feil ved kommunikasjon med serveren.');
+                        // Re-enable button
+                        $btn.prop('disabled', false);
+                        $btn.html(originalText);
                     }
                 });
             });
@@ -1244,6 +1325,14 @@ class Feide_WP_Auth_Admin {
                     return;
                 }
 
+                var $btn = $(this);
+                var originalText = $btn.html();
+
+                // Disable button and show loading state
+                $btn.prop('disabled', true);
+                $btn.html('<span class="spinner is-active" style="float: none; margin: 0 5px 0 0;"></span> Importerer...');
+                $('#import-result').html('');
+
                 var file = $('#import-file-input')[0].files[0];
                 var reader = new FileReader();
 
@@ -1266,10 +1355,16 @@ class Feide_WP_Auth_Admin {
                                 }, 2000);
                             } else {
                                 $('#import-result').html('<div style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 12px; margin-top: 15px;"><strong>❌ Feil:</strong> ' + response.data + '</div>');
+                                // Re-enable button on error
+                                $btn.prop('disabled', false);
+                                $btn.html(originalText);
                             }
                         },
                         error: function() {
                             $('#import-result').html('<div style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 12px; margin-top: 15px;"><strong>❌ Feil ved kommunikasjon med serveren.</strong></div>');
+                            // Re-enable button on error
+                            $btn.prop('disabled', false);
+                            $btn.html(originalText);
                         }
                     });
                 };
@@ -1278,6 +1373,8 @@ class Feide_WP_Auth_Admin {
 
             // URL REPLACEMENT TOOL
             $('#url-replace-btn').on('click', function() {
+                var $btn = $(this);
+                var originalText = $btn.html();
                 var findUrl = $('#url-find').val();
                 var replaceUrl = $('#url-replace').val();
 
@@ -1289,6 +1386,11 @@ class Feide_WP_Auth_Admin {
                 if (!confirm('Dette vil erstatte "' + findUrl + '" med "' + replaceUrl + '" i alle innstillinger. Fortsette?')) {
                     return;
                 }
+
+                // Disable button and show loading state
+                $btn.prop('disabled', true);
+                $btn.html('<span class="spinner is-active" style="float: none; margin: 0 5px 0 0;"></span> Erstatter...');
+                $('#url-replace-result').html('');
 
                 $.ajax({
                     url: ajaxurl,
@@ -1307,7 +1409,16 @@ class Feide_WP_Auth_Admin {
                             }, 2000);
                         } else {
                             $('#url-replace-result').html('<div style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 12px;"><strong>❌ Feil:</strong> ' + response.data + '</div>');
+                            // Re-enable button on error
+                            $btn.prop('disabled', false);
+                            $btn.html(originalText);
                         }
+                    },
+                    error: function() {
+                        $('#url-replace-result').html('<div style="background: #f8d7da; border-left: 4px solid #dc3545; padding: 12px;"><strong>❌ Feil ved kommunikasjon med serveren.</strong></div>');
+                        // Re-enable button on error
+                        $btn.prop('disabled', false);
+                        $btn.html(originalText);
                     }
                 });
             });
@@ -1476,6 +1587,64 @@ class Feide_WP_Auth_Admin {
 
         if (!$import) {
             wp_send_json_error('Ugyldig JSON-data');
+        }
+
+        // Validate JSON structure and types
+        if (!is_array($import)) {
+            wp_send_json_error('Import må være et JSON-objekt');
+        }
+
+        // Validate array fields
+        if (isset($import['attribute_mapping']) && !is_array($import['attribute_mapping'])) {
+            wp_send_json_error('attribute_mapping må være et array');
+        }
+
+        if (isset($import['role_rules']) && !is_array($import['role_rules'])) {
+            wp_send_json_error('role_rules må være et array');
+        }
+
+        // Validate URL fields
+        $url_fields = array('redirect_uri', 'authorize_endpoint', 'token_endpoint', 'userinfo_endpoint', 'groupinfo_endpoint');
+        foreach ($url_fields as $field) {
+            if (isset($import[$field]) && !empty($import[$field])) {
+                if (!filter_var($import[$field], FILTER_VALIDATE_URL)) {
+                    wp_send_json_error($field . ' må være en gyldig URL');
+                }
+                // Ensure HTTPS for security (OAuth requires it)
+                if (strpos($import[$field], 'https://') !== 0) {
+                    wp_send_json_error($field . ' må bruke HTTPS');
+                }
+            }
+        }
+
+        // Validate role names exist in WordPress
+        if (isset($import['default_role']) && !empty($import['default_role'])) {
+            if (!get_role($import['default_role'])) {
+                wp_send_json_error('Ugyldig default_role: ' . esc_html($import['default_role']) . ' finnes ikke i WordPress');
+            }
+        }
+
+        // Validate role rules structure
+        if (isset($import['role_rules']) && is_array($import['role_rules'])) {
+            foreach ($import['role_rules'] as $index => $rule) {
+                if (!is_array($rule)) {
+                    wp_send_json_error('Rolle-regel #' . ($index + 1) . ' må være et objekt');
+                }
+                if (isset($rule['role']) && !get_role($rule['role'])) {
+                    wp_send_json_error('Rolle-regel #' . ($index + 1) . ': rolle "' . esc_html($rule['role']) . '" finnes ikke i WordPress');
+                }
+                if (isset($rule['criteria']) && !is_array($rule['criteria'])) {
+                    wp_send_json_error('Rolle-regel #' . ($index + 1) . ': criteria må være et array');
+                }
+            }
+        }
+
+        // Validate boolean fields
+        $boolean_fields = array('auto_create_users', 'allow_all_authenticated', 'enable_debug_logging');
+        foreach ($boolean_fields as $field) {
+            if (isset($import[$field]) && !is_bool($import[$field]) && $import[$field] !== '1' && $import[$field] !== '0') {
+                wp_send_json_error($field . ' må være true eller false');
+            }
         }
 
         // Opprett backup av nåværende innstillinger

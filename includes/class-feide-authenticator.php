@@ -29,6 +29,36 @@ class Feide_Authenticator {
     }
 
     /**
+     * Set transient with validation and error logging
+     *
+     * @param string $key Transient key
+     * @param mixed $value Value to store
+     * @param int $expiration Expiration time in seconds
+     * @return bool True on success, false on failure
+     */
+    private function set_transient_validated($key, $value, $expiration) {
+        $result = set_transient($key, $value, $expiration);
+        if (!$result && WP_DEBUG) {
+            error_log('FEIDE Auth: Failed to set transient: ' . $key);
+        }
+        return $result;
+    }
+
+    /**
+     * Delete transient with validation and error logging
+     *
+     * @param string $key Transient key
+     * @return bool True if successful, false otherwise
+     */
+    private function delete_transient_validated($key) {
+        $result = delete_transient($key);
+        if (!$result && WP_DEBUG) {
+            error_log('FEIDE Auth: Failed to delete transient: ' . $key);
+        }
+        return $result;
+    }
+
+    /**
      * Håndter callback fra FEIDE
      */
     public function handle_callback() {
@@ -44,7 +74,7 @@ class Feide_Authenticator {
             $state = isset($_GET['state']) ? $_GET['state'] : '';
             if ($state && get_transient('feide_test_mode_' . $state)) {
                 delete_transient('feide_test_mode_' . $state);
-                set_transient('feide_test_error', $error_description, 60);
+                $this->set_transient_validated('feide_test_error', $error_description, 60);
                 wp_redirect(admin_url('admin.php?page=feide-wp-auth&tab=test'));
                 exit;
             }
@@ -52,18 +82,16 @@ class Feide_Authenticator {
             wp_die('FEIDE autentiseringsfeil: ' . esc_html($error_description));
         }
 
-        // Verifiser state
-        if (!isset($_GET['state']) || !get_transient('feide_auth_state_' . $_GET['state'])) {
-            wp_die('Ugyldig state-parameter. Mulig CSRF-angrep.');
+        // Verifiser state using State Manager
+        $state = isset($_GET['state']) ? $_GET['state'] : '';
+        $state_data = Feide_State_Manager::validate_and_consume_state($state);
+
+        if (is_wp_error($state_data)) {
+            wp_die($state_data->get_error_message());
         }
 
-        $state = $_GET['state'];
-        $is_test_mode = get_transient('feide_test_mode_' . $state);
-
-        delete_transient('feide_auth_state_' . $state);
-        if ($is_test_mode) {
-            delete_transient('feide_test_mode_' . $state);
-        }
+        // Extract test mode flag
+        $is_test_mode = $state_data['test_mode'];
 
         // Hent autorisasjonskode
         if (!isset($_GET['code'])) {
@@ -80,11 +108,23 @@ class Feide_Authenticator {
                 error_log('FEIDE Auth: Token exchange failed - ' . $token_data->get_error_message());
             }
             if ($is_test_mode) {
-                set_transient('feide_test_error', $token_data->get_error_message(), 60);
+                $this->set_transient_validated('feide_test_error', $token_data->get_error_message(), 60);
                 wp_redirect(admin_url('admin.php?page=feide-wp-auth&tab=test'));
                 exit;
             }
-            wp_die('Feil ved henting av access token: ' . $token_data->get_error_message());
+
+            $error_msg = 'Feil ved henting av access token: ' . $token_data->get_error_message();
+            $error_msg .= '<br><br><strong>Mulige årsaker:</strong>';
+            $error_msg .= '<ul>';
+            $error_msg .= '<li>Ugyldig Client ID eller Client Secret</li>';
+            $error_msg .= '<li>Redirect URI matcher ikke FEIDE-registreringen</li>';
+            $error_msg .= '<li>FEIDE-server er utilgjengelig</li>';
+            $error_msg .= '</ul>';
+            $error_msg .= '<strong>Løsning:</strong> ';
+            $error_msg .= '<a href="' . admin_url('admin.php?page=feide-wp-auth&tab=settings') . '">Verifiser innstillinger</a> ';
+            $error_msg .= 'eller <a href="' . admin_url('admin.php?page=feide-wp-auth&tab=test') . '">test autentisering</a>';
+
+            wp_die($error_msg);
         }
 
         // Hent brukerinformasjon
@@ -95,11 +135,22 @@ class Feide_Authenticator {
                 error_log('FEIDE Auth: Failed to get user info - ' . $user_info->get_error_message());
             }
             if ($is_test_mode) {
-                set_transient('feide_test_error', $user_info->get_error_message(), 60);
+                $this->set_transient_validated('feide_test_error', $user_info->get_error_message(), 60);
                 wp_redirect(admin_url('admin.php?page=feide-wp-auth&tab=test'));
                 exit;
             }
-            wp_die('Feil ved henting av brukerinformasjon: ' . $user_info->get_error_message());
+
+            $error_msg = 'Feil ved henting av brukerinformasjon: ' . $user_info->get_error_message();
+            $error_msg .= '<br><br><strong>Mulige årsaker:</strong>';
+            $error_msg .= '<ul>';
+            $error_msg .= '<li>Access token er ugyldig eller utløpt</li>';
+            $error_msg .= '<li>Userinfo endpoint URL er feil</li>';
+            $error_msg .= '<li>Mangler nødvendige OAuth scopes</li>';
+            $error_msg .= '</ul>';
+            $error_msg .= '<strong>Løsning:</strong> ';
+            $error_msg .= '<a href="' . admin_url('admin.php?page=feide-wp-auth&tab=settings') . '">Sjekk endpoint-URL og scopes</a>';
+
+            wp_die($error_msg);
         }
 
         // Hent gruppeinformasjon hvis konfigurert
@@ -113,7 +164,7 @@ class Feide_Authenticator {
 
         // Lagre attributter for debugging (kun hvis debug er aktivert)
         if ($this->is_debug_enabled()) {
-            set_transient('feide_last_attributes', array(
+            $this->set_transient_validated('feide_last_attributes', array(
                 'user_info' => $user_info,
                 'group_info' => $group_info,
                 'all_attributes' => $all_attributes,
@@ -132,7 +183,7 @@ class Feide_Authenticator {
                 )
             ));
 
-            set_transient('feide_test_result', $test_result, 600);
+            $this->set_transient_validated('feide_test_result', $test_result, 600);
             wp_redirect(admin_url('admin.php?page=feide-wp-auth&tab=test&test-success=1'));
             exit;
         }
@@ -157,7 +208,7 @@ class Feide_Authenticator {
                     'role_check_result' => $role_check,
                     'timestamp' => current_time('mysql')
                 );
-                set_transient('feide_access_denied_debug', $debug_info, 3600);
+                $this->set_transient_validated('feide_access_denied_debug', $debug_info, 3600);
             }
 
             // Hvis bruker er admin, vis detaljert info
@@ -215,7 +266,16 @@ class Feide_Authenticator {
 
                 wp_die($message, 'Tilgang nektet - Debug', array('response' => 403));
             } else {
-                wp_die('Du har ikke tilgang til dette systemet. Kontakt administrator om du mener dette er feil.');
+                $message = '<h1>Tilgang nektet</h1>';
+                $message .= '<p>Du har autentisert deg med FEIDE, men har ikke tilgang til dette systemet.</p>';
+                $message .= '<br><strong>Mulige årsaker:</strong>';
+                $message .= '<ul>';
+                $message .= '<li>Din FEIDE-bruker oppfyller ikke kravene for tilgang</li>';
+                $message .= '<li>Du tilhører ikke en autorisert gruppe</li>';
+                $message .= '<li>Systemet krever spesifikke attributter som mangler</li>';
+                $message .= '</ul>';
+                $message .= '<p><strong>Løsning:</strong> Kontakt systemadministrator om du mener dette er feil.</p>';
+                wp_die($message, 'Tilgang nektet', array('response' => 403));
             }
         }
 
@@ -281,6 +341,34 @@ class Feide_Authenticator {
             return $response;
         }
 
+        // Validate HTTP status code
+        $status_code = wp_remote_retrieve_response_code($response);
+        if ($status_code < 200 || $status_code >= 300) {
+            $error_msg = 'HTTP ' . $status_code . ': ';
+            switch ($status_code) {
+                case 401:
+                    $error_msg .= 'Autentiseringsfeil (feil Client ID eller Secret)';
+                    break;
+                case 403:
+                    $error_msg .= 'Tilgang nektet av FEIDE';
+                    break;
+                case 404:
+                    $error_msg .= 'Token endpoint ikke funnet (sjekk URL)';
+                    break;
+                case 500:
+                case 502:
+                case 503:
+                    $error_msg .= 'FEIDE-server feil';
+                    break;
+                default:
+                    $error_msg .= 'Uventet HTTP-status';
+            }
+            if (WP_DEBUG) {
+                error_log('FEIDE Auth: Token exchange failed with HTTP ' . $status_code);
+            }
+            return new WP_Error('http_error', $error_msg);
+        }
+
         $body = wp_remote_retrieve_body($response);
         $data = json_decode($body, true);
 
@@ -318,6 +406,34 @@ class Feide_Authenticator {
             return $response;
         }
 
+        // Validate HTTP status code
+        $status_code = wp_remote_retrieve_response_code($response);
+        if ($status_code < 200 || $status_code >= 300) {
+            $error_msg = 'HTTP ' . $status_code . ': ';
+            switch ($status_code) {
+                case 401:
+                    $error_msg .= 'Access token ugyldig eller utløpt';
+                    break;
+                case 403:
+                    $error_msg .= 'Ingen tilgang til brukerinformasjon';
+                    break;
+                case 404:
+                    $error_msg .= 'Userinfo endpoint ikke funnet (sjekk URL)';
+                    break;
+                case 500:
+                case 502:
+                case 503:
+                    $error_msg .= 'FEIDE-server feil';
+                    break;
+                default:
+                    $error_msg .= 'Uventet HTTP-status';
+            }
+            if (WP_DEBUG) {
+                error_log('FEIDE Auth: Userinfo request failed with HTTP ' . $status_code);
+            }
+            return new WP_Error('http_error', $error_msg);
+        }
+
         $body = wp_remote_retrieve_body($response);
         $data = json_decode($body, true);
 
@@ -345,7 +461,38 @@ class Feide_Authenticator {
         ));
 
         if (is_wp_error($response)) {
-            return array();
+            if (WP_DEBUG) {
+                error_log('FEIDE Auth: Failed to fetch group info - ' . $response->get_error_message());
+            }
+            return array('_fetch_error' => $response->get_error_message());
+        }
+
+        // Validate HTTP status code
+        $status_code = wp_remote_retrieve_response_code($response);
+        if ($status_code < 200 || $status_code >= 300) {
+            $error_msg = 'HTTP ' . $status_code . ': ';
+            switch ($status_code) {
+                case 401:
+                    $error_msg .= 'Access token ugyldig eller utløpt';
+                    break;
+                case 403:
+                    $error_msg .= 'Ingen tilgang til gruppeinformasjon';
+                    break;
+                case 404:
+                    $error_msg .= 'Groups endpoint ikke funnet (sjekk URL)';
+                    break;
+                case 500:
+                case 502:
+                case 503:
+                    $error_msg .= 'FEIDE-server feil';
+                    break;
+                default:
+                    $error_msg .= 'Uventet HTTP-status';
+            }
+            if (WP_DEBUG) {
+                error_log('FEIDE Auth: Group endpoint returned HTTP ' . $status_code);
+            }
+            return array('_fetch_error' => $error_msg);
         }
 
         $body = wp_remote_retrieve_body($response);
@@ -434,7 +581,7 @@ class Feide_Authenticator {
 
         // Lagre samlet debug-info for alle regler (kun hvis debug er aktivert)
         if ($this->is_debug_enabled()) {
-            set_transient('feide_all_criteria_checks', $all_debug_info, 3600);
+            $this->set_transient_validated('feide_all_criteria_checks', $all_debug_info, 3600);
         }
 
         // Debug logging
@@ -492,11 +639,11 @@ class Feide_Authenticator {
         // Lagre debug-info med unik nøkkel for denne regelen (kun hvis debug er aktivert)
         if ($this->is_debug_enabled()) {
             if ($mapping_index !== null) {
-                set_transient('feide_criteria_check_' . $mapping_index, $debug_comparisons, 3600);
+                $this->set_transient_validated('feide_criteria_check_' . $mapping_index, $debug_comparisons, 3600);
             }
 
             // Behold også gammel transient for bakoverkompatibilitet
-            set_transient('feide_last_criteria_check', $debug_comparisons, 3600);
+            $this->set_transient_validated('feide_last_criteria_check', $debug_comparisons, 3600);
         }
 
         // Debug logging

@@ -209,12 +209,73 @@
     }
 
     /**
+     * Validate a single field and show inline error
+     */
+    function validateField($field, errorMsg) {
+        var $container = $field.closest('td');
+        if ($container.length === 0) {
+            $container = $field.closest('.criterion-item');
+        }
+
+        // Remove existing error
+        $container.find('.field-error').remove();
+        $field.removeClass('error-field');
+
+        // Add error if message provided
+        if (errorMsg) {
+            $field.addClass('error-field');
+            $container.append('<p class="field-error">' + errorMsg + '</p>');
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Clear all validation errors
+     */
+    function clearValidationErrors() {
+        $('.field-error').remove();
+        $('.error-field').removeClass('error-field');
+    }
+
+    /**
      * Initialize form validation
      */
     function initFormValidation() {
+        // Real-time validation on blur for required fields
+        $('#client_id').on('blur', function() {
+            var value = $(this).val().trim();
+            if (value === '') {
+                validateField($(this), 'Client ID er påkrevd');
+            } else {
+                validateField($(this), '');
+            }
+        });
+
+        $('#client_secret').on('blur', function() {
+            var value = $(this).val().trim();
+            if (value === '') {
+                validateField($(this), 'Client Secret er påkrevd');
+            } else {
+                validateField($(this), '');
+            }
+        });
+
+        // Validate criterion fields on blur
+        $(document).on('blur', 'input[name*="[attribute]"], input[name*="[value]"]', function() {
+            var value = $(this).val().trim();
+            if (value === '') {
+                var fieldName = $(this).attr('name').includes('[attribute]') ? 'Attributt' : 'Verdi';
+                validateField($(this), fieldName + ' er påkrevd');
+            } else {
+                validateField($(this), '');
+            }
+        });
+
+        // Form submission validation
         $('form').on('submit', function(e) {
+            clearValidationErrors();
             var valid = true;
-            var errors = [];
 
             // Validate on settings tab
             if ($('#client_id').length) {
@@ -222,37 +283,45 @@
                 var clientSecret = $('#client_secret').val().trim();
 
                 if (clientId === '') {
-                    errors.push('Client ID er påkrevd');
+                    validateField($('#client_id'), 'Client ID er påkrevd');
                     valid = false;
                 }
 
                 if (clientSecret === '') {
-                    errors.push('Client Secret er påkrevd');
+                    validateField($('#client_secret'), 'Client Secret er påkrevd');
                     valid = false;
                 }
             }
 
             // Validate role mappings
             $('.role-mapping-item').each(function() {
-                var hasEmptyCriteria = false;
                 $(this).find('.criterion-item').each(function() {
-                    var attr = $(this).find('input[name*="[attribute]"]').val().trim();
-                    var value = $(this).find('input[name*="[value]"]').val().trim();
+                    var $attrInput = $(this).find('input[name*="[attribute]"]');
+                    var $valueInput = $(this).find('input[name*="[value]"]');
+                    var attr = $attrInput.val().trim();
+                    var value = $valueInput.val().trim();
 
-                    if (attr === '' || value === '') {
-                        hasEmptyCriteria = true;
+                    if (attr === '') {
+                        validateField($attrInput, 'Attributt er påkrevd');
+                        valid = false;
+                    }
+
+                    if (value === '') {
+                        validateField($valueInput, 'Verdi er påkrevd');
+                        valid = false;
                     }
                 });
-
-                if (hasEmptyCriteria) {
-                    errors.push('Alle kriterier må ha både attributt og verdi');
-                    valid = false;
-                }
             });
 
             if (!valid) {
                 e.preventDefault();
-                alert('Vennligst rett følgende feil:\n\n' + errors.join('\n'));
+                // Scroll to first error
+                var $firstError = $('.error-field').first();
+                if ($firstError.length) {
+                    $('html, body').animate({
+                        scrollTop: $firstError.offset().top - 100
+                    }, 300);
+                }
             }
         });
     }
@@ -275,13 +344,35 @@
     }
 
     /**
-     * Copy to clipboard helper
+     * Copy to clipboard helper (uses modern Clipboard API with fallback)
      */
     function copyToClipboard(text) {
+        // Try modern Clipboard API first
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function() {
+                // Success - silent
+            }).catch(function(err) {
+                // Fallback to old method
+                copyToClipboardFallback(text);
+            });
+        } else {
+            // Browser doesn't support Clipboard API, use fallback
+            copyToClipboardFallback(text);
+        }
+    }
+
+    /**
+     * Fallback clipboard copy for older browsers
+     */
+    function copyToClipboardFallback(text) {
         var $temp = $('<input>');
         $('body').append($temp);
         $temp.val(text).select();
-        document.execCommand('copy');
+        try {
+            document.execCommand('copy');
+        } catch (err) {
+            console.error('Failed to copy text: ', err);
+        }
         $temp.remove();
     }
 

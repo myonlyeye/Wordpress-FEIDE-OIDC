@@ -26,7 +26,8 @@ define('FEIDE_WP_AUTH_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('FEIDE_WP_AUTH_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('FEIDE_WP_AUTH_PLUGIN_FILE', __FILE__);
 
-// Last inn hovedklassen
+// Last inn klasser
+require_once FEIDE_WP_AUTH_PLUGIN_DIR . 'includes/class-feide-state-manager.php';
 require_once FEIDE_WP_AUTH_PLUGIN_DIR . 'includes/class-feide-wp-auth.php';
 
 /**
@@ -99,7 +100,7 @@ function feide_cleanup_old_transients() {
     global $wpdb;
 
     // Get all expired FEIDE transients
-    $wpdb->query(
+    $deleted = $wpdb->query(
         $wpdb->prepare(
             "DELETE FROM {$wpdb->options}
             WHERE option_name LIKE %s
@@ -111,8 +112,17 @@ function feide_cleanup_old_transients() {
         )
     );
 
+    // Log cleanup results
+    if ($deleted === false) {
+        if (WP_DEBUG) {
+            error_log('FEIDE Auth: Failed to cleanup expired transients - ' . $wpdb->last_error);
+        }
+    } elseif (WP_DEBUG && $deleted > 0) {
+        error_log('FEIDE Auth: Cleaned up ' . $deleted . ' expired transient timeouts');
+    }
+
     // Also delete the transient values for those expired timeouts
-    $wpdb->query(
+    $deleted_values = $wpdb->query(
         $wpdb->prepare(
             "DELETE FROM {$wpdb->options}
             WHERE option_name LIKE %s
@@ -125,5 +135,14 @@ function feide_cleanup_old_transients() {
             '_transient_timeout_feide_%'
         )
     );
+
+    // Log cleanup results for values
+    if ($deleted_values === false) {
+        if (WP_DEBUG) {
+            error_log('FEIDE Auth: Failed to cleanup orphaned transient values - ' . $wpdb->last_error);
+        }
+    } elseif (WP_DEBUG && $deleted_values > 0) {
+        error_log('FEIDE Auth: Cleaned up ' . $deleted_values . ' orphaned transient values');
+    }
 }
 add_action('feide_cleanup_old_transients', 'feide_cleanup_old_transients');
