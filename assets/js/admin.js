@@ -10,6 +10,7 @@
         initTestAuth();
         initRoleMappings();
         initFormValidation();
+        initEndpointTesting();
     });
 
     /**
@@ -84,6 +85,47 @@
                 $heading.html('Rolleregel #' + (index + 1) + ' ' + buttonHTML);
             }
         });
+
+        // Keyboard navigation: Enter in criterion value field adds new criterion
+        $(document).on('keypress', '.criterion-item input[name*="[value]"]', function(e) {
+            if (e.which === 13) { // Enter key
+                e.preventDefault();
+                var $addBtn = $(this).closest('.criteria-container').find('.add-criterion');
+                $addBtn.click();
+
+                // Focus the new criterion's attribute field after a brief delay
+                setTimeout(function() {
+                    var $container = $(e.target).closest('.criteria-container');
+                    var $lastCriterion = $container.find('.criterion-item').last();
+                    $lastCriterion.find('input[name*="[attribute]"]').focus();
+                }, 50);
+            }
+        });
+
+        // Focus management: Focus first input in new mapping
+        $(document).on('click', '#add-role-mapping', function() {
+            setTimeout(function() {
+                var $lastMapping = $('.role-mapping-item').last();
+                $lastMapping.find('.rule-name-input').focus();
+            }, 50);
+        });
+
+        // Announce dynamic content changes for screen readers
+        $(document).on('click', '.add-criterion, .remove-criterion, #add-role-mapping, .remove-role-mapping', function() {
+            announceToScreenReader('Skjema oppdatert');
+        });
+    }
+
+    /**
+     * Announce message to screen readers via aria-live region
+     */
+    function announceToScreenReader(message) {
+        var $announcer = $('#feide-sr-announcer');
+        if (!$announcer.length) {
+            $announcer = $('<div id="feide-sr-announcer" role="status" aria-live="polite" aria-atomic="true" class="screen-reader-text"></div>');
+            $('body').append($announcer);
+        }
+        $announcer.text(message);
     }
 
     /**
@@ -110,9 +152,9 @@
         }
 
         return `
-            <div class="role-mapping-item" data-index="${index}">
+            <div class="role-mapping-item" data-index="${index}" role="region" aria-label="Rolleregel ${index + 1}">
                 <h3>Rolleregel #${index + 1}
-                    <button type="button" class="button remove-role-mapping">Fjern</button>
+                    <button type="button" class="button remove-role-mapping" aria-label="Fjern denne rolleregelen">Fjern</button>
                 </h3>
                 <table class="form-table">
                     <tr>
@@ -148,12 +190,12 @@
                         </td>
                     </tr>
                 </table>
-                <h4>Kriterier</h4>
-                <div class="criteria-container" data-mapping-index="${index}">
+                <h4 id="criteria-heading-${index}">Kriterier</h4>
+                <div class="criteria-container" data-mapping-index="${index}" role="group" aria-labelledby="criteria-heading-${index}">
                     ${createCriterionHTML(index, 0)}
                 </div>
                 <p>
-                    <button type="button" class="button add-criterion" data-mapping-index="${index}">
+                    <button type="button" class="button add-criterion" data-mapping-index="${index}" aria-label="Legg til nytt kriterium">
                         Legg til kriterium
                     </button>
                 </p>
@@ -166,13 +208,15 @@
      */
     function createCriterionHTML(mappingIndex, criterionIndex) {
         return `
-            <div class="criterion-item">
+            <div class="criterion-item" role="group" aria-label="Kriterium ${criterionIndex + 1}">
                 <input type="text"
                        name="feide_wp_auth_settings[role_mappings][${mappingIndex}][criteria][${criterionIndex}][attribute]"
                        placeholder="Attributt (f.eks. groups:*:id eller user:email)"
                        title="Bruk * som wildcard for å matche alle elementer i et array"
+                       aria-label="Attributt-sti"
                        class="regular-text">
-                <select name="feide_wp_auth_settings[role_mappings][${mappingIndex}][criteria][${criterionIndex}][comparison]">
+                <select name="feide_wp_auth_settings[role_mappings][${mappingIndex}][criteria][${criterionIndex}][comparison]"
+                        aria-label="Sammenligningsoperator">
                     <option value="equals">Er lik</option>
                     <option value="contains">Inneholder</option>
                     <option value="starts_with">Starter med</option>
@@ -182,8 +226,9 @@
                 <input type="text"
                        name="feide_wp_auth_settings[role_mappings][${mappingIndex}][criteria][${criterionIndex}][value]"
                        placeholder="Verdi"
+                       aria-label="Forventet verdi"
                        class="regular-text">
-                <button type="button" class="button remove-criterion">Fjern</button>
+                <button type="button" class="button remove-criterion" aria-label="Fjern dette kriteriet">Fjern</button>
             </div>
         `;
     }
@@ -374,6 +419,54 @@
             console.error('Failed to copy text: ', err);
         }
         $temp.remove();
+    }
+
+    /**
+     * Initialize endpoint connectivity testing
+     */
+    function initEndpointTesting() {
+        $('.test-endpoint-btn').on('click', function() {
+            var $btn = $(this);
+            var endpointId = $btn.data('endpoint');
+            var $input = $('#' + endpointId);
+            var $status = $('#' + endpointId + '_status');
+            var endpointUrl = $input.val().trim();
+
+            if (!endpointUrl) {
+                $status.html('<span style="color: #dc3232;">Ingen URL oppgitt</span>');
+                return;
+            }
+
+            // Show loading state
+            $btn.prop('disabled', true);
+            $status.html('<span class="spinner is-active" style="float: none;"></span>');
+
+            $.ajax({
+                url: ajaxurl,
+                type: 'POST',
+                data: {
+                    action: 'feide_test_endpoint',
+                    nonce: feideAdmin.nonce,
+                    endpoint_url: endpointUrl
+                },
+                success: function(response) {
+                    if (response.success) {
+                        var data = response.data;
+                        var color = data.reachable ? '#28a745' : '#dc3232';
+                        var icon = data.reachable ? '✓' : '✗';
+                        $status.html('<span style="color: ' + color + ';">' + icon + ' ' + data.status_text + ' (HTTP ' + data.status_code + ')</span>');
+                    } else {
+                        $status.html('<span style="color: #dc3232;">✗ ' + response.data + '</span>');
+                    }
+                },
+                error: function() {
+                    $status.html('<span style="color: #dc3232;">✗ Kommunikasjonsfeil</span>');
+                },
+                complete: function() {
+                    $btn.prop('disabled', false);
+                }
+            });
+        });
     }
 
     // Add copy buttons to code elements in test results

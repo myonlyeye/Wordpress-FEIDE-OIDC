@@ -1,16 +1,47 @@
 <?php
 /**
- * Håndterer FEIDE autentisering via OpenID Connect
+ * FEIDE Authenticator
+ *
+ * Handles FEIDE authentication via OpenID Connect/OAuth 2.0.
+ * Manages the OAuth flow, user creation, and role assignment.
+ *
+ * @package FEIDE_WordPress_Auth
+ * @since 1.0.0
  */
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
+/**
+ * Class Feide_Authenticator
+ *
+ * Core authentication class that handles:
+ * - OAuth 2.0 callback processing
+ * - Token exchange with FEIDE
+ * - User info retrieval
+ * - User creation and role assignment
+ * - Test authentication mode
+ *
+ * @since 1.0.0
+ */
 class Feide_Authenticator {
 
+    /**
+     * Plugin settings array
+     *
+     * @since 1.0.0
+     * @var array
+     */
     private $settings;
 
+    /**
+     * Constructor
+     *
+     * Initializes settings and registers WordPress hooks.
+     *
+     * @since 1.0.0
+     */
     public function __construct() {
         $this->settings = get_option('feide_wp_auth_settings', array());
 
@@ -22,7 +53,10 @@ class Feide_Authenticator {
     }
 
     /**
-     * Sjekk om debug-logging er aktivert
+     * Check if debug logging is enabled
+     *
+     * @since 1.0.0
+     * @return bool True if debug logging is enabled
      */
     private function is_debug_enabled() {
         return !empty($this->settings['enable_debug_logging']);
@@ -59,7 +93,18 @@ class Feide_Authenticator {
     }
 
     /**
-     * Håndter callback fra FEIDE
+     * Handle OAuth callback from FEIDE
+     *
+     * Processes the OAuth 2.0 authorization callback:
+     * 1. Validates the state parameter (CSRF protection)
+     * 2. Exchanges authorization code for access token
+     * 3. Retrieves user info from FEIDE
+     * 4. Creates or updates WordPress user
+     * 5. Assigns roles based on configured criteria
+     * 6. Logs user into WordPress
+     *
+     * @since 1.0.0
+     * @return void
      */
     public function handle_callback() {
         if (!isset($_GET['feide-auth']) || $_GET['feide-auth'] !== 'callback') {
@@ -71,12 +116,15 @@ class Feide_Authenticator {
             $error_description = isset($_GET['error_description']) ? $_GET['error_description'] : $_GET['error'];
 
             // Hvis dette er en test, lagre feilen og redirect til admin
+            // Use State Manager to check if this was a test authentication
             $state = isset($_GET['state']) ? $_GET['state'] : '';
-            if ($state && get_transient('feide_test_mode_' . $state)) {
-                delete_transient('feide_test_mode_' . $state);
-                $this->set_transient_validated('feide_test_error', $error_description, 60);
-                wp_redirect(admin_url('admin.php?page=feide-wp-auth&tab=test'));
-                exit;
+            if ($state) {
+                $state_data = Feide_State_Manager::validate_and_consume_state($state);
+                if (!is_wp_error($state_data) && !empty($state_data['test_mode'])) {
+                    $this->set_transient_validated('feide_test_error', $error_description, 60);
+                    wp_redirect(admin_url('admin.php?page=feide-wp-auth&tab=test'));
+                    exit;
+                }
             }
 
             wp_die('FEIDE autentiseringsfeil: ' . esc_html($error_description));
@@ -303,7 +351,14 @@ class Feide_Authenticator {
     }
 
     /**
-     * Bytt autorisasjonskode mot access token
+     * Exchange authorization code for access token
+     *
+     * Performs OAuth 2.0 token exchange using HTTP Basic Authentication
+     * with the configured client credentials.
+     *
+     * @since 1.0.0
+     * @param string $code Authorization code received from FEIDE callback
+     * @return array|WP_Error Token data array on success, WP_Error on failure
      */
     private function exchange_code_for_token($code) {
         // FEIDE/Dataporten krever HTTP Basic Authentication
@@ -391,7 +446,14 @@ class Feide_Authenticator {
     }
 
     /**
-     * Hent brukerinformasjon fra FEIDE
+     * Retrieve user information from FEIDE
+     *
+     * Fetches the OpenID Connect userinfo from FEIDE using the access token.
+     * Returns user profile data including name, email, and FEIDE-specific attributes.
+     *
+     * @since 1.0.0
+     * @param string $access_token OAuth access token
+     * @return array|WP_Error User data array on success, WP_Error on failure
      */
     private function get_user_info($access_token) {
         $response = wp_remote_get($this->settings['userinfo_endpoint'], array(
@@ -445,7 +507,14 @@ class Feide_Authenticator {
     }
 
     /**
-     * Hent gruppeinformasjon fra FEIDE
+     * Retrieve group information from FEIDE
+     *
+     * Fetches group membership data from FEIDE Groups API.
+     * Used for role assignment based on group membership.
+     *
+     * @since 1.0.0
+     * @param string $access_token OAuth access token
+     * @return array Group data array, or array with '_fetch_error' key on failure
      */
     private function get_group_info($access_token) {
         if (empty($this->settings['groupinfo_endpoint'])) {
@@ -502,7 +571,14 @@ class Feide_Authenticator {
     }
 
     /**
-     * Sjekk om brukerens attributter oppfyller rolle-kriterier
+     * Check if user attributes match role criteria
+     *
+     * Evaluates the user's FEIDE attributes against configured role rules.
+     * Supports AND/OR logic, wildcard matching, and multiple comparison operators.
+     *
+     * @since 1.0.0
+     * @param array $attributes Combined user and group attributes from FEIDE
+     * @return array|false Array of WordPress role names if criteria are met, false otherwise
      */
     private function check_role_criteria($attributes) {
         // Sjekk om alle autentiserte brukere skal gis tilgang
@@ -605,7 +681,17 @@ class Feide_Authenticator {
     }
 
     /**
-     * Sjekk om kriterier er oppfylt
+     * Evaluate criteria against user attributes
+     *
+     * Checks if a set of criteria are satisfied by the user's attributes.
+     * Supports AND/OR operators for combining multiple criteria.
+     *
+     * @since 1.0.0
+     * @param array $attributes User attributes to check
+     * @param array $criteria Array of criterion definitions (attribute, comparison, value)
+     * @param string $operator 'AND' or 'OR' - how to combine criteria results
+     * @param int|null $mapping_index Index of the role mapping for debug storage
+     * @return bool True if criteria are satisfied according to operator
      */
     private function check_criteria($attributes, $criteria, $operator = 'AND', $mapping_index = null) {
         if (empty($criteria)) {
@@ -824,7 +910,16 @@ class Feide_Authenticator {
     }
 
     /**
-     * Finn eller opprett WordPress-bruker
+     * Find or create WordPress user from FEIDE attributes
+     *
+     * Attempts to find existing user by FEIDE subject ID or email.
+     * Creates new user if not found and auto-creation is enabled.
+     * Updates user metadata and assigns configured roles.
+     *
+     * @since 1.0.0
+     * @param array $attributes User attributes from FEIDE (email, name, sub, etc.)
+     * @param array $roles Array of WordPress role slugs to assign
+     * @return WP_User|WP_Error WordPress user object on success, WP_Error on failure
      */
     private function find_or_create_user($attributes, $roles) {
         $attribute_mapping = isset($this->settings['attribute_mapping']) ? $this->settings['attribute_mapping'] : array();
@@ -989,11 +1084,13 @@ class Feide_Authenticator {
 
     /**
      * Generer test-autoriserings-URL
+     *
+     * @since 2.5.0 Updated to use State Manager for secure state generation
+     * @return string The authorization URL with query parameters
      */
     private function get_test_authorization_url() {
-        $state = wp_create_nonce('feide_test_state');
-        set_transient('feide_auth_state_' . $state, true, 600);
-        set_transient('feide_test_mode_' . $state, true, 600);
+        // Use State Manager for cryptographically secure state generation
+        $state = Feide_State_Manager::generate_state(true);
 
         $params = array(
             'client_id' => $this->settings['client_id'],

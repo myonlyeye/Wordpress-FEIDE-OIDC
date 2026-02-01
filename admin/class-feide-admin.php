@@ -21,6 +21,9 @@ class Feide_WP_Auth_Admin {
         add_action('wp_ajax_feide_restore_backup', array($this, 'ajax_restore_backup'));
         add_action('wp_ajax_feide_download_backup', array($this, 'ajax_download_backup'));
         add_action('wp_ajax_feide_delete_backup', array($this, 'ajax_delete_backup'));
+
+        // Endpoint connectivity testing
+        add_action('wp_ajax_feide_test_endpoint', array($this, 'ajax_test_endpoint'));
     }
 
     /**
@@ -170,7 +173,8 @@ class Feide_WP_Auth_Admin {
 
         wp_localize_script('feide-admin-js', 'feideAdmin', array(
             'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('feide_test_auth')
+            'nonce' => wp_create_nonce('feide_admin_nonce'),
+            'test_auth_nonce' => wp_create_nonce('feide_test_auth')
         ));
     }
 
@@ -362,6 +366,8 @@ class Feide_WP_Auth_Admin {
                 <td>
                     <input type="url" id="authorize_endpoint" name="feide_wp_auth_settings[authorize_endpoint]"
                            value="<?php echo esc_attr($settings['authorize_endpoint'] ?? 'https://auth.dataporten.no/oauth/authorization'); ?>" class="regular-text">
+                    <button type="button" class="button test-endpoint-btn" data-endpoint="authorize_endpoint">Test</button>
+                    <span class="endpoint-status" id="authorize_endpoint_status"></span>
                     <p class="description">OAuth Authorization Endpoint</p>
                 </td>
             </tr>
@@ -372,6 +378,8 @@ class Feide_WP_Auth_Admin {
                 <td>
                     <input type="url" id="token_endpoint" name="feide_wp_auth_settings[token_endpoint]"
                            value="<?php echo esc_attr($settings['token_endpoint'] ?? 'https://auth.dataporten.no/oauth/token'); ?>" class="regular-text">
+                    <button type="button" class="button test-endpoint-btn" data-endpoint="token_endpoint">Test</button>
+                    <span class="endpoint-status" id="token_endpoint_status"></span>
                     <p class="description">OAuth Token Endpoint</p>
                 </td>
             </tr>
@@ -382,6 +390,8 @@ class Feide_WP_Auth_Admin {
                 <td>
                     <input type="url" id="userinfo_endpoint" name="feide_wp_auth_settings[userinfo_endpoint]"
                            value="<?php echo esc_attr($settings['userinfo_endpoint'] ?? 'https://auth.dataporten.no/userinfo'); ?>" class="regular-text">
+                    <button type="button" class="button test-endpoint-btn" data-endpoint="userinfo_endpoint">Test</button>
+                    <span class="endpoint-status" id="userinfo_endpoint_status"></span>
                     <p class="description">OpenID Connect UserInfo Endpoint</p>
                 </td>
             </tr>
@@ -392,6 +402,8 @@ class Feide_WP_Auth_Admin {
                 <td>
                     <input type="url" id="groupinfo_endpoint" name="feide_wp_auth_settings[groupinfo_endpoint]"
                            value="<?php echo esc_attr($settings['groupinfo_endpoint'] ?? 'https://groups-api.dataporten.no/groups/me/groups'); ?>" class="regular-text">
+                    <button type="button" class="button test-endpoint-btn" data-endpoint="groupinfo_endpoint">Test</button>
+                    <span class="endpoint-status" id="groupinfo_endpoint_status"></span>
                     <p class="description">Endpoint for å hente gruppeinformasjon (valgfritt)</p>
                 </td>
             </tr>
@@ -805,21 +817,23 @@ class Feide_WP_Auth_Admin {
                     </tr>
                 </table>
 
-                <h4>Kriterier</h4>
-                <div class="criteria-container" data-mapping-index="<?php echo $index; ?>">
+                <h4 id="criteria-heading-<?php echo $index; ?>">Kriterier</h4>
+                <div class="criteria-container" data-mapping-index="<?php echo $index; ?>" role="group" aria-labelledby="criteria-heading-<?php echo $index; ?>">
                     <?php
                     $criteria = $mapping['criteria'] ?? array(array('attribute' => '', 'comparison' => 'equals', 'value' => ''));
                     foreach ($criteria as $crit_index => $criterion):
                     ?>
-                    <div class="criterion-item">
+                    <div class="criterion-item" role="group" aria-label="Kriterium <?php echo $crit_index + 1; ?>">
                         <input type="text"
                                name="feide_wp_auth_settings[role_mappings][<?php echo $index; ?>][criteria][<?php echo $crit_index; ?>][attribute]"
                                placeholder="Attributt (f.eks. groups:*:id eller user:email)"
                                value="<?php echo esc_attr($criterion['attribute']); ?>"
                                class="regular-text"
+                               aria-label="Attributt-sti"
                                title="Bruk * som wildcard for å matche alle elementer i et array. Eksempel: groups:*:id matcher id fra alle grupper">
 
-                        <select name="feide_wp_auth_settings[role_mappings][<?php echo $index; ?>][criteria][<?php echo $crit_index; ?>][comparison]">
+                        <select name="feide_wp_auth_settings[role_mappings][<?php echo $index; ?>][criteria][<?php echo $crit_index; ?>][comparison]"
+                                aria-label="Sammenligningsoperator">
                             <option value="equals" <?php selected($criterion['comparison'], 'equals'); ?>>Er lik</option>
                             <option value="contains" <?php selected($criterion['comparison'], 'contains'); ?>>Inneholder</option>
                             <option value="starts_with" <?php selected($criterion['comparison'], 'starts_with'); ?>>Starter med</option>
@@ -831,15 +845,16 @@ class Feide_WP_Auth_Admin {
                                name="feide_wp_auth_settings[role_mappings][<?php echo $index; ?>][criteria][<?php echo $crit_index; ?>][value]"
                                placeholder="Verdi"
                                value="<?php echo esc_attr($criterion['value']); ?>"
-                               class="regular-text">
+                               class="regular-text"
+                               aria-label="Forventet verdi">
 
-                        <button type="button" class="button remove-criterion">Fjern</button>
+                        <button type="button" class="button remove-criterion" aria-label="Fjern dette kriteriet">Fjern</button>
                     </div>
                     <?php endforeach; ?>
                 </div>
 
                 <p>
-                    <button type="button" class="button add-criterion" data-mapping-index="<?php echo $index; ?>">
+                    <button type="button" class="button add-criterion" data-mapping-index="<?php echo $index; ?>" aria-describedby="add-criterion-help-<?php echo $index; ?>">
                         Legg til kriterium
                     </button>
                 </p>
@@ -1784,5 +1799,86 @@ class Feide_WP_Auth_Admin {
         }
 
         wp_send_json_success('Backup slettet');
+    }
+
+    /**
+     * AJAX: Test endpoint connectivity
+     *
+     * Tests if an OAuth endpoint is reachable and returns status information.
+     *
+     * @since 2.5.0
+     * @return void Outputs JSON response
+     */
+    public function ajax_test_endpoint() {
+        check_ajax_referer('feide_admin_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Ingen tilgang');
+        }
+
+        $endpoint_url = isset($_POST['endpoint_url']) ? esc_url_raw($_POST['endpoint_url']) : '';
+
+        if (empty($endpoint_url)) {
+            wp_send_json_error('Ingen URL oppgitt');
+        }
+
+        // Validate URL format
+        if (!filter_var($endpoint_url, FILTER_VALIDATE_URL)) {
+            wp_send_json_error('Ugyldig URL-format');
+        }
+
+        // Require HTTPS for OAuth endpoints
+        if (strpos($endpoint_url, 'https://') !== 0) {
+            wp_send_json_error('URL må bruke HTTPS');
+        }
+
+        // Test connectivity with a HEAD request first (lighter)
+        $response = wp_remote_head($endpoint_url, array(
+            'timeout' => 10,
+            'sslverify' => true
+        ));
+
+        if (is_wp_error($response)) {
+            wp_send_json_error('Kunne ikke nå endpoint: ' . $response->get_error_message());
+        }
+
+        $status_code = wp_remote_retrieve_response_code($response);
+
+        // Interpret status codes
+        $status_text = '';
+        $is_ok = false;
+
+        if ($status_code >= 200 && $status_code < 300) {
+            $status_text = 'OK';
+            $is_ok = true;
+        } elseif ($status_code == 401 || $status_code == 403) {
+            $status_text = 'Tilgjengelig (krever autentisering)';
+            $is_ok = true; // Expected for OAuth endpoints
+        } elseif ($status_code == 404) {
+            $status_text = 'Ikke funnet';
+        } elseif ($status_code == 405) {
+            // Method not allowed - try GET instead
+            $response = wp_remote_get($endpoint_url, array(
+                'timeout' => 10,
+                'sslverify' => true
+            ));
+            if (!is_wp_error($response)) {
+                $status_code = wp_remote_retrieve_response_code($response);
+                if ($status_code >= 200 && $status_code < 500) {
+                    $status_text = 'OK';
+                    $is_ok = true;
+                }
+            }
+        } elseif ($status_code >= 500) {
+            $status_text = 'Server-feil';
+        } else {
+            $status_text = 'Uventet status';
+        }
+
+        wp_send_json_success(array(
+            'reachable' => $is_ok,
+            'status_code' => $status_code,
+            'status_text' => $status_text
+        ));
     }
 }
