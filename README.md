@@ -67,6 +67,9 @@ This plugin allows you to integrate FEIDE authentication into WordPress, with ad
 - Client credentials validation
 - Secure error handling (no sensitive data exposure)
 - Configurable redirect after login
+- HTTP response status validation for all API calls
+- JSON schema validation for settings import
+- Atomic state parameter validation (prevents TOCTOU attacks)
 
 ### Settings Import/Export
 - **Export configurations** - Create JSON backups of your settings
@@ -76,7 +79,7 @@ This plugin allows you to integrate FEIDE authentication into WordPress, with ad
 - **Import configurations** - Restore or migrate settings
   - Preview changes before importing
   - Automatic backup creation
-  - JSON validation
+  - JSON schema validation for security
 - **URL Replacement Tool** - Migrate between environments
   - Batch replace URLs (dev → staging → prod)
   - Updates redirect URIs, endpoints, and custom URLs
@@ -84,6 +87,14 @@ This plugin allows you to integrate FEIDE authentication into WordPress, with ad
   - Pre-import backups
   - One-click restore
   - Download/delete backups
+
+### Admin Panel Enhancements (v2.5.0)
+- **Configuration Status Widget** - Visual dashboard showing completion status of all required settings
+- **Inline Form Validation** - Real-time validation with visual error indicators (no more alert boxes)
+- **Required Field Indicators** - Red asterisks and aria-required attributes for accessibility
+- **Endpoint Connectivity Testing** - Test each OAuth endpoint before saving settings
+- **Loading States** - Visual feedback during AJAX operations with spinners and progress messages
+- **Improved Error Messages** - Actionable error messages with possible causes and solutions
 
 ## Installation
 
@@ -267,6 +278,12 @@ The plugin implements several security measures:
 
 ### Security Updates
 
+**Version 2.5.0** includes critical security fixes:
+- **Fixed OAuth state TOCTOU vulnerability** - State validation and consumption now atomic
+- **HTTP status code validation** - All API calls now validate response codes (401, 403, 404, 500-503)
+- **JSON schema validation for import** - Validates structure, types, URLs, and role names
+- **Centralized State Manager** - Single source of truth for state generation and validation
+
 **Version 2.4.0** adds settings management:
 - **Import/Export with security controls** - Export settings with granular control over sensitive data
 - Security warnings when exporting credentials
@@ -405,7 +422,8 @@ feide-wordpress-auth/
 ├── uninstall.php                # Cleanup on uninstall
 ├── includes/
 │   ├── class-feide-wp-auth.php        # Main class
-│   └── class-feide-authenticator.php  # Authentication logic
+│   ├── class-feide-authenticator.php  # Authentication logic
+│   └── class-feide-state-manager.php  # Centralized OAuth state management
 ├── admin/
 │   └── class-feide-admin.php          # Admin panel (6 tabs)
 ├── assets/
@@ -440,6 +458,7 @@ User metadata is stored per user:
 For full version history and detailed changes, see [CHANGELOG.md](CHANGELOG.md).
 
 **Latest versions:**
+- **v2.5** - Security & UX: TOCTOU fix, inline validation, status dashboard, endpoint testing
 - **v2.4** - Settings Import/Export: Environment migration & backup system
 - **v2.3** - Critical OAuth security fix: Cryptographically secure state generation
 - **v2.2** - Security fixes: Client secret protection, reduced info leakage

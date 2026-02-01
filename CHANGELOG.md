@@ -15,6 +15,64 @@ This plugin is a collaboration between:
 
 A testament to what human creativity and AI capabilities can achieve together! 🚀
 
+## [2.5.0] - 2026-02-01
+
+### Security
+- **CRITICAL: Fixed OAuth state TOCTOU vulnerability** - State validation and consumption now atomic
+  - Combined state check and deletion into single operation
+  - Added state format validation (32 alphanumeric characters)
+  - Prevents race condition attacks on state parameter
+- **HTTP status code validation** - All API calls now validate response codes
+  - Specific error messages for 401, 403, 404, 500-503 responses
+  - Applied to token exchange, user info, and group info endpoints
+- **JSON schema validation for import** - Validates imported settings before applying
+  - Structure and type validation
+  - URL format validation (requires HTTPS)
+  - Role name validation (must exist in WordPress)
+  - Boolean field validation
+
+### Added
+- **Centralized State Manager class** (`class-feide-state-manager.php`)
+  - Single source of truth for OAuth state generation and validation
+  - Methods: `generate_state()`, `validate_and_consume_state()`, `state_exists()`, `cleanup_expired_states()`
+  - Comprehensive PHPDoc documentation
+- **Configuration Status Dashboard Widget** - Visual overview showing configuration completion
+  - Checks: Client ID, Client Secret, Redirect URI, Endpoints
+  - Visual indicators (✅/⚠️) for each setting
+- **Inline Form Validation** - Real-time validation on blur events
+  - Visual error indicators (red border, error message)
+  - Scroll to first error on form submission
+  - No more disruptive alert() boxes
+- **Required Field Indicators** - Red asterisks on required fields
+  - Added `aria-required="true"` for accessibility
+- **Endpoint Connectivity Testing** - Test each OAuth endpoint before saving
+  - AJAX handler to verify endpoint connectivity
+  - Visual feedback for success/failure
+- **Loading States for AJAX Operations** - Better user feedback
+  - Disabled buttons during operations
+  - Spinners and progress messages
+  - Applied to: export, import, URL replacement, endpoint testing
+- **Improved Error Messages** - Actionable errors with solutions
+  - "Mulige årsaker" (Possible causes) section
+  - "Løsning" (Solution) section with links to settings
+
+### Changed
+- **Refactored state management** - All 3 locations now use centralized State Manager
+- **Replaced deprecated execCommand** - Now uses modern `navigator.clipboard.writeText()` API
+- **Enhanced transient operations** - Added validation helpers with error logging
+- **Improved group info error handling** - Distinguishes "no groups" from "fetch failed"
+
+### Fixed
+- Silent group info failures now logged when WP_DEBUG enabled
+- Transient operation failures now validated and logged
+- Cleanup SQL queries now check for errors
+
+### Technical Details
+- **Files created:** 2 (State Manager class, IMPROVEMENTS.md)
+- **Files modified:** 6 core files
+- **Lines changed:** ~1,500
+- **Backward compatible:** Yes - no breaking changes
+
 ## [2.4.0] - 2025-11-14
 
 ### Added
@@ -243,13 +301,10 @@ Features planned for future releases:
 - Single Logout (SLO) support
 - Token refresh functionality
 - User profile integration showing FEIDE data
-- Export/import of plugin settings
 - Webhook notifications on user creation
 - Multisite network support
 - Password reset integration for FEIDE users
 - PHPUnit automated tests
-- Enhanced error logging
-- Settings migration system
 
 ---
 
@@ -257,6 +312,7 @@ Features planned for future releases:
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| **2.5.0** | 2026-02-01 | 🛡️ Security & UX: TOCTOU fix, inline validation, status dashboard |
 | **2.4.0** | 2025-11-14 | 📦 Settings Import/Export: Environment migration & backup system |
 | **2.3.0** | 2025-11-14 | 🔐 Critical OAuth security fix: Cryptographically secure state generation |
 | **2.2.0** | 2025-01-27 | 🔒 Security fixes: Client secret protection, debug toggle |
@@ -266,6 +322,18 @@ Features planned for future releases:
 | **1.0.0** | 2025-01-XX | 🎉 Initial release with full FEIDE authentication |
 
 ## Upgrade Path
+
+### From 2.4 to 2.5 (RECOMMENDED SECURITY UPDATE)
+- **Critical TOCTOU security fix** - OAuth state validation now atomic
+- **Improved UX** - No more alert boxes, inline validation instead
+- No breaking changes - fully backward compatible
+- No action required after update
+- New capabilities:
+  - Configuration status dashboard widget
+  - Inline form validation with visual feedback
+  - Endpoint connectivity testing
+  - Loading states for all AJAX operations
+  - Better error messages with actionable solutions
 
 ### From 2.3 to 2.4
 - **New features** - Import/Export functionality for easy configuration management
