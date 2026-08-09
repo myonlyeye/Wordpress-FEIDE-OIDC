@@ -19,6 +19,12 @@ if (!defined('WP_UNINSTALL_PLUGIN')) {
 delete_option('feide_wp_auth_settings');
 
 /**
+ * Delete settings backup (may contain client secret)
+ */
+delete_option('feide_wp_auth_settings_backup');
+delete_option('feide_wp_auth_settings_backup_time');
+
+/**
  * Delete all FEIDE-related transients
  */
 global $wpdb;

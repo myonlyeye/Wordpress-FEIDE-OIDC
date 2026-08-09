@@ -259,6 +259,17 @@ This will update:
 3. Log in with your FEIDE account
 4. Automatically created and logged into WordPress
 
+### Direct Login URL
+You can link users directly to FEIDE authentication, bypassing the WordPress
+login form entirely (useful in menus, e-mails, and bookmarks):
+
+```
+https://yourdomain.com/wp-login.php?feide-auth=start
+```
+
+Visiting this URL generates a fresh state parameter and redirects straight to
+FEIDE. The "Login with FEIDE" button on the login page uses the same endpoint.
+
 ### For Administrators
 - Manage roles and access criteria in admin panel
 - Test configuration without affecting production

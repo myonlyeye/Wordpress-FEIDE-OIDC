@@ -70,11 +70,10 @@ class Feide_WP_Auth_Admin {
             // Kun trim whitespace - ikke modifiser selve verdien (kritisk for autentisering)
             $sanitized['client_secret'] = trim($input['client_secret']);
 
-            // Debug logging (vis bare lengde og første/siste tegn for sikkerhet)
+            // SECURITY: Logg aldri noen del av selve secreten - kun lengden
             if (WP_DEBUG) {
                 $secret_len = strlen($sanitized['client_secret']);
-                $secret_preview = $secret_len > 0 ? substr($sanitized['client_secret'], 0, 8) . '...' . substr($sanitized['client_secret'], -4) : 'EMPTY';
-                error_log('FEIDE Auth: Saving Client Secret - Length: ' . $secret_len . ', Preview: ' . $secret_preview);
+                error_log('FEIDE Auth: Saving Client Secret - ' . ($secret_len > 0 ? 'Length: ' . $secret_len : 'EMPTY'));
             }
         }
         if (isset($input['redirect_uri'])) {
@@ -739,9 +738,31 @@ class Feide_WP_Auth_Admin {
         $role_mappings = $settings['role_mappings'] ?? array();
         $wp_roles = wp_roles()->get_names();
 
+        // Sjekk om minst én regel har et gyldig kriterium (samme logikk som autentikatoren)
+        $has_valid_rule = false;
+        foreach ($role_mappings as $mapping) {
+            if (!empty($mapping['criteria']) && is_array($mapping['criteria'])) {
+                foreach ($mapping['criteria'] as $criterion) {
+                    if (!empty($criterion['attribute']) && !empty($criterion['value'])) {
+                        $has_valid_rule = true;
+                        break 2;
+                    }
+                }
+            }
+        }
+
         ?>
         <h2>Rolletildeling basert på FEIDE-attributter</h2>
         <p>Definer kriterier for hvilke brukere som skal få tilgang og hvilke roller de skal tildeles.</p>
+
+        <?php if (!$has_valid_rule && empty($settings['allow_all_authenticated'])): ?>
+        <div class="notice notice-warning" style="padding: 10px; margin: 15px 0;">
+            <p><strong>⚠️ Ingen gyldige rolle-regler er definert</strong></p>
+            <p>Ingen FEIDE-brukere vil få tilgang før du enten definerer minst én rolle-regel med både attributt og verdi,
+               eller aktiverer «Gi alle autentiserte FEIDE-brukere tilgang» under
+               <a href="?page=feide-wp-auth&tab=settings">OpenID Innstillinger</a>.</p>
+        </div>
+        <?php endif; ?>
 
         <div class="notice notice-info" style="padding: 10px; margin: 15px 0;">
             <p><strong>💡 Tips: Wildcard-støtte</strong></p>
@@ -1005,7 +1026,7 @@ class Feide_WP_Auth_Admin {
                         <td>
                             <?php if (!empty($settings['client_secret'])): ?>
                                 Lengde: <?php echo strlen($settings['client_secret']); ?> tegn<br>
-                                Preview: <code><?php echo esc_html(substr($settings['client_secret'], 0, 8) . '...' . substr($settings['client_secret'], -4)); ?></code>
+                                Verdi: <code>***skjult av sikkerhetshensyn***</code>
                             <?php else: ?>
                                 <span style="color: #dc3232;">IKKE SATT</span>
                             <?php endif; ?>
@@ -1024,7 +1045,14 @@ class Feide_WP_Auth_Admin {
 
         <h3>Lagrede innstillinger (komplett)</h3>
         <div style="background: #f5f5f5; padding: 15px; border: 1px solid #ddd; overflow-x: auto;">
-            <pre><?php echo esc_html(print_r($settings, true)); ?></pre>
+            <?php
+            // SECURITY: Vis aldri client_secret i klartekst
+            $masked_settings = $settings;
+            if (!empty($masked_settings['client_secret'])) {
+                $masked_settings['client_secret'] = '***skjult (' . strlen($settings['client_secret']) . ' tegn)***';
+            }
+            ?>
+            <pre><?php echo esc_html(print_r($masked_settings, true)); ?></pre>
         </div>
 
         <?php
@@ -1040,9 +1068,14 @@ class Feide_WP_Auth_Admin {
                 <pre><?php echo esc_html(print_r($debug_info['attributes'], true)); ?></pre>
             </div>
 
-            <h4>Rolle-regler som ble sjekket:</h4>
+            <h4>Innstillinger brukt ved sjekken (inkl. rolle-regler):</h4>
             <div style="background: #fff; padding: 10px; border: 1px solid #ddd; overflow-x: auto;">
-                <pre><?php echo esc_html(print_r($debug_info['role_mappings'], true)); ?></pre>
+                <pre><?php echo esc_html(print_r(isset($debug_info['settings']) ? $debug_info['settings'] : array(), true)); ?></pre>
+            </div>
+
+            <h4>Resultat av rolle-sjekk:</h4>
+            <div style="background: #fff; padding: 10px; border: 1px solid #ddd; overflow-x: auto;">
+                <pre><?php echo esc_html(print_r(isset($debug_info['role_check_result']) ? $debug_info['role_check_result'] : array(), true)); ?></pre>
             </div>
 
             <p>

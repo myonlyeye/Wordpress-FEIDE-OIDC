@@ -45,6 +45,9 @@ class Feide_Authenticator {
     public function __construct() {
         $this->settings = get_option('feide_wp_auth_settings', array());
 
+        // Håndter start av innloggingsflyt (direktelenke til FEIDE-pålogging)
+        add_action('init', array($this, 'handle_start'));
+
         // Håndter callback fra FEIDE
         add_action('init', array($this, 'handle_callback'));
 
@@ -90,6 +93,54 @@ class Feide_Authenticator {
             error_log('FEIDE Auth: Failed to delete transient: ' . $key);
         }
         return $result;
+    }
+
+    /**
+     * Build the FEIDE authorization URL for a given state parameter
+     *
+     * @since 2.6.0
+     * @param string $state OAuth state parameter
+     * @return string The authorization URL with query parameters
+     */
+    private function build_authorization_url($state) {
+        $params = array(
+            'client_id' => $this->settings['client_id'],
+            'redirect_uri' => $this->settings['redirect_uri'],
+            'response_type' => 'code',
+            'scope' => $this->settings['scope'],
+            'state' => $state
+        );
+
+        return $this->settings['authorize_endpoint'] . '?' . http_build_query($params);
+    }
+
+    /**
+     * Handle start of the FEIDE login flow
+     *
+     * Direct entry point (?feide-auth=start) that generates a state parameter
+     * and redirects the user straight to FEIDE authentication. Used by the
+     * login page button, and can be linked to directly from menus/e-mails.
+     * Generating state here (instead of on every login page render) avoids
+     * writing a transient for every visit to wp-login.php.
+     *
+     * @since 2.6.0
+     * @return void
+     */
+    public function handle_start() {
+        if (!isset($_GET['feide-auth']) || $_GET['feide-auth'] !== 'start') {
+            return;
+        }
+
+        if (empty($this->settings['client_id']) ||
+            empty($this->settings['client_secret']) ||
+            empty($this->settings['authorize_endpoint'])) {
+            wp_die('FEIDE-innlogging er ikke konfigurert.');
+        }
+
+        $state = Feide_State_Manager::generate_state(false);
+
+        wp_redirect($this->build_authorization_url($state));
+        exit;
     }
 
     /**
@@ -244,18 +295,20 @@ class Feide_Authenticator {
                 error_log('FEIDE Auth: Access denied for user (sub: ' . ($user_info['sub'] ?? 'unknown') . ') - no matching role criteria');
             }
 
-            // Lagre omfattende debug-info (kun hvis debug er aktivert)
+            // Bygg debug-info (vises til administratorer nedenfor;
+            // lagres som transient kun hvis debug-logging er aktivert)
+            $debug_info = array(
+                'attributes' => $all_attributes,
+                'settings' => array(
+                    'allow_all_authenticated' => isset($this->settings['allow_all_authenticated']) ? $this->settings['allow_all_authenticated'] : 'NOT SET',
+                    'default_role' => isset($this->settings['default_role']) ? $this->settings['default_role'] : 'NOT SET',
+                    'role_mappings' => isset($this->settings['role_mappings']) ? $this->settings['role_mappings'] : 'NOT SET',
+                ),
+                'role_check_result' => $role_check,
+                'timestamp' => current_time('mysql')
+            );
+
             if ($this->is_debug_enabled()) {
-                $debug_info = array(
-                    'attributes' => $all_attributes,
-                    'settings' => array(
-                        'allow_all_authenticated' => isset($this->settings['allow_all_authenticated']) ? $this->settings['allow_all_authenticated'] : 'NOT SET',
-                        'default_role' => isset($this->settings['default_role']) ? $this->settings['default_role'] : 'NOT SET',
-                        'role_mappings' => isset($this->settings['role_mappings']) ? $this->settings['role_mappings'] : 'NOT SET',
-                    ),
-                    'role_check_result' => $role_check,
-                    'timestamp' => current_time('mysql')
-                );
                 $this->set_transient_validated('feide_access_denied_debug', $debug_info, 3600);
             }
 
@@ -608,9 +661,12 @@ class Feide_Authenticator {
         }
 
         if (empty($valid_mappings)) {
-            // Hvis ingen gyldige rolle-mappinger er definert, gi standard tilgang
-            $default_role = isset($this->settings['default_role']) ? $this->settings['default_role'] : 'subscriber';
-            return array('allowed' => true, 'roles' => array($default_role));
+            // Fail closed: uten gyldige rolle-regler og uten "tillat alle" gis ingen tilgang.
+            // Aktiver "Gi alle autentiserte FEIDE-brukere tilgang" for åpen tilgang.
+            if (WP_DEBUG) {
+                error_log('FEIDE Auth: No valid role mappings defined and allow_all_authenticated is disabled - denying access');
+            }
+            return array('allowed' => false, 'roles' => array());
         }
 
         $matched_roles = array();
@@ -857,16 +913,23 @@ class Feide_Authenticator {
                     $actual = trim($actual);
                 }
             } else {
-                // Array har flere elementer - sjekk om MINST ÉN matcher
-                // Dette er spesielt viktig for wildcard-resultater (f.eks. groups:*:id)
+                // Array har flere elementer. For positive operatorer: MINST ÉN må matche.
+                // For negative operatorer (not_equals): ALLE må oppfylle betingelsen,
+                // ellers ville "not_equals X" matche alle som har minst én annen verdi enn X.
+                $negative = ($comparison === 'not_equals');
+
                 foreach ($actual as $value) {
-                    // Rekursivt kall for å sjekke hver verdi mot forventet verdi
-                    if ($this->compare_values($value, $expected, $comparison)) {
+                    $match = $this->compare_values($value, $expected, $comparison);
+
+                    if ($negative && !$match) {
+                        return false; // Minst én verdi er lik forventet verdi
+                    }
+                    if (!$negative && $match) {
                         return true; // Minst én verdi matcher!
                     }
                 }
-                // Ingen verdier matchet
-                return false;
+
+                return $negative;
             }
         }
 
@@ -1074,9 +1137,7 @@ class Feide_Authenticator {
             wp_send_json_error('Ingen tilgang');
         }
 
-        // Start OAuth-flyt men med test-flagg
-        set_transient('feide_test_mode', true, 600);
-
+        // Start OAuth-flyt med test-flagg (flagget bæres av state-parameteren)
         $auth_url = $this->get_test_authorization_url();
 
         wp_send_json_success(array('redirect_url' => $auth_url));
@@ -1092,14 +1153,6 @@ class Feide_Authenticator {
         // Use State Manager for cryptographically secure state generation
         $state = Feide_State_Manager::generate_state(true);
 
-        $params = array(
-            'client_id' => $this->settings['client_id'],
-            'redirect_uri' => $this->settings['redirect_uri'],
-            'response_type' => 'code',
-            'scope' => $this->settings['scope'],
-            'state' => $state
-        );
-
-        return $this->settings['authorize_endpoint'] . '?' . http_build_query($params);
+        return $this->build_authorization_url($state);
     }
 }

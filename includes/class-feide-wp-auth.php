@@ -42,7 +42,10 @@ class Feide_WP_Auth {
             return;
         }
 
-        $auth_url = $this->get_authorization_url();
+        // Pek på start-endepunktet i stedet for å generere state ved hver
+        // sidevisning: state opprettes først når brukeren faktisk klikker.
+        // URL-en kan også brukes som direktelenke til FEIDE-pålogging.
+        $auth_url = self::get_start_url();
         ?>
         <div id="feide-login-wrapper">
             <p class="feide-login-button">
@@ -90,20 +93,16 @@ class Feide_WP_Auth {
     }
 
     /**
-     * Generer autoriserings-URL
+     * URL som starter FEIDE-innloggingsflyten
+     *
+     * Kan brukes som direktelenke (i menyer, e-poster, bokmerker) - brukeren
+     * sendes rett til FEIDE-autentisering uten å se innloggingsskjemaet.
+     * Håndteres av Feide_Authenticator::handle_start().
+     *
+     * @since 2.6.0
+     * @return string
      */
-    private function get_authorization_url() {
-        // Generer kryptografisk sikker tilfeldig state-parameter
-        $state = Feide_State_Manager::generate_state(false);
-
-        $params = array(
-            'client_id' => $this->settings['client_id'],
-            'redirect_uri' => $this->settings['redirect_uri'],
-            'response_type' => 'code',
-            'scope' => $this->settings['scope'],
-            'state' => $state
-        );
-
-        return $this->settings['authorize_endpoint'] . '?' . http_build_query($params);
+    public static function get_start_url() {
+        return add_query_arg('feide-auth', 'start', wp_login_url());
     }
 }

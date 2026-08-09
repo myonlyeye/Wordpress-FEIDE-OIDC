@@ -15,6 +15,44 @@ This plugin is a collaboration between:
 
 A testament to what human creativity and AI capabilities can achieve together! 🚀
 
+## [2.6.0] - 2026-08-09
+
+### Security
+- **Fail-closed access control** - When no valid role rules are defined and
+  "Allow all authenticated users" is disabled, access is now denied instead of
+  granting the default role. A warning is shown in the Role Assignment tab when
+  this configuration would lock users out.
+- **Removed remaining client secret exposure**:
+  - `sanitize_settings()` no longer logs a partial secret preview (first/last
+    characters) to the error log - only the length is logged
+  - Debug tab no longer shows a partial secret preview
+  - Debug tab's full settings dump now masks the client secret
+- **Fixed `not_equals` semantics for wildcard/multi-value attributes** - A rule
+  like `groups:*:id not_equals X` now requires ALL values to differ from X.
+  Previously it matched if at least one value differed, which made exclusion
+  rules match almost everyone.
+- Uninstall now also deletes the settings backup options
+  (`feide_wp_auth_settings_backup`), which may contain the client secret.
+
+### Added
+- **Direct login URL** (`?feide-auth=start`) - New endpoint that generates a
+  state parameter and redirects straight to FEIDE authentication. Can be linked
+  from menus, e-mails, and bookmarks so users skip the WordPress login form.
+
+### Changed
+- The login page button now points to the new start endpoint. The state
+  transient is created when the user clicks the button, not on every render of
+  wp-login.php (avoids unauthenticated database writes per page view).
+
+### Fixed
+- Undefined `$debug_info` PHP warning on the admin access-denied page when
+  debug logging was disabled
+- Debug tab's "last access denied" section read a non-existent key
+  (`role_mappings`) from the stored debug data; it now shows the stored
+  settings and role check result
+- Removed dead `feide_test_mode` transient in test authentication (the test
+  flag is carried by the state parameter since 2.5.0)
+
 ## [2.5.0] - 2026-02-01
 
 ### Security

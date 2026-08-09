@@ -3,7 +3,7 @@
  * Plugin Name: FEIDE WordPress Authentication
  * Plugin URI: https://github.com/myonlyeye/fida
  * Description: Authenticates WordPress users against FEIDE via OpenID Connect/OAuth 2.0
- * Version: 2.5.0
+ * Version: 2.6.0
  * Author: Odin & Claude
  * Author URI: https://github.com/myonlyeye
  * License: GPL v2 or later
@@ -21,7 +21,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('FEIDE_WP_AUTH_VERSION', '2.5.0');
+define('FEIDE_WP_AUTH_VERSION', '2.6.0');
 define('FEIDE_WP_AUTH_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('FEIDE_WP_AUTH_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('FEIDE_WP_AUTH_PLUGIN_FILE', __FILE__);
