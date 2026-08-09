@@ -1350,7 +1350,7 @@ class Feide_WP_Auth_Admin {
                 if (data.client_secret) html += '<li>Client Secret: <strong style="color: #d63d00;">JA (sensitiv data)</strong></li>';
                 if (data.redirect_uri) html += '<li>Redirect URI: <code>' + data.redirect_uri + '</code></li>';
                 if (data.attribute_mapping) html += '<li>Attributt-mapping: <strong>' + Object.keys(data.attribute_mapping).length + ' felt</strong></li>';
-                if (data.role_rules) html += '<li>Rolle-regler: <strong>' + data.role_rules.length + ' regler</strong></li>';
+                if (data.role_mappings) html += '<li>Rolle-regler: <strong>' + data.role_mappings.length + ' regler</strong></li>';
                 if (data.default_role) html += '<li>Standard rolle: <code>' + data.default_role + '</code></li>';
 
                 html += '</ul>';
@@ -1579,8 +1579,8 @@ class Feide_WP_Auth_Admin {
         $options = isset($_POST['options']) ? $_POST['options'] : array();
 
         $export = array();
-        $export['_export_version'] = '2.4.0';
-        $export['_export_date'] = date('Y-m-d H:i:s');
+        $export['_export_version'] = FEIDE_WP_AUTH_VERSION;
+        $export['_export_date'] = current_time('mysql');
 
         // OpenID Settings
         if (!empty($options['openid_settings'])) {
@@ -1603,9 +1603,9 @@ class Feide_WP_Auth_Admin {
             $export['attribute_mapping'] = isset($settings['attribute_mapping']) ? $settings['attribute_mapping'] : array();
         }
 
-        // Role Rules
+        // Role Mappings (rolle-regler) - lagres som 'role_mappings' i innstillingene
         if (!empty($options['role_rules'])) {
-            $export['role_rules'] = isset($settings['role_rules']) ? $settings['role_rules'] : array();
+            $export['role_mappings'] = isset($settings['role_mappings']) ? $settings['role_mappings'] : array();
         }
 
         // User Settings
@@ -1633,13 +1633,20 @@ class Feide_WP_Auth_Admin {
         $import_json = isset($_POST['settings']) ? stripslashes($_POST['settings']) : '';
         $import = json_decode($import_json, true);
 
-        if (!$import) {
-            wp_send_json_error('Ugyldig JSON-data');
+        // Validate JSON structure and types
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($import)) {
+            wp_send_json_error('Ugyldig JSON-data: ' . json_last_error_msg());
         }
 
-        // Validate JSON structure and types
-        if (!is_array($import)) {
-            wp_send_json_error('Import må være et JSON-objekt');
+        // Sjekk at filen faktisk inneholder kjente FEIDE-innstillinger
+        $known_fields = array(
+            'client_id', 'client_secret', 'redirect_uri', 'scope',
+            'authorize_endpoint', 'token_endpoint', 'userinfo_endpoint', 'groupinfo_endpoint',
+            'auto_create_users', 'allow_all_authenticated', 'default_role',
+            'attribute_mapping', 'role_mappings', 'redirect_after_login', 'enable_debug_logging'
+        );
+        if (count(array_intersect_key($import, array_flip($known_fields))) === 0) {
+            wp_send_json_error('Filen inneholder ingen gjenkjennelige FEIDE-innstillinger');
         }
 
         // Validate array fields
@@ -1647,11 +1654,11 @@ class Feide_WP_Auth_Admin {
             wp_send_json_error('attribute_mapping må være et array');
         }
 
-        if (isset($import['role_rules']) && !is_array($import['role_rules'])) {
-            wp_send_json_error('role_rules må være et array');
+        if (isset($import['role_mappings']) && !is_array($import['role_mappings'])) {
+            wp_send_json_error('role_mappings må være et array');
         }
 
-        // Validate URL fields
+        // Validate URL fields (OAuth endpoints must use HTTPS)
         $url_fields = array('redirect_uri', 'authorize_endpoint', 'token_endpoint', 'userinfo_endpoint', 'groupinfo_endpoint');
         foreach ($url_fields as $field) {
             if (isset($import[$field]) && !empty($import[$field])) {
@@ -1665,6 +1672,14 @@ class Feide_WP_Auth_Admin {
             }
         }
 
+        // Redirect etter innlogging må være en gyldig URL (tillater http for lokale miljøer),
+        // slik at en importfil ikke kan sette en vilkårlig streng som brukes i wp_redirect()
+        if (isset($import['redirect_after_login']) && !empty($import['redirect_after_login'])) {
+            if (!filter_var($import['redirect_after_login'], FILTER_VALIDATE_URL)) {
+                wp_send_json_error('redirect_after_login må være en gyldig URL');
+            }
+        }
+
         // Validate role names exist in WordPress
         if (isset($import['default_role']) && !empty($import['default_role'])) {
             if (!get_role($import['default_role'])) {
@@ -1672,9 +1687,9 @@ class Feide_WP_Auth_Admin {
             }
         }
 
-        // Validate role rules structure
-        if (isset($import['role_rules']) && is_array($import['role_rules'])) {
-            foreach ($import['role_rules'] as $index => $rule) {
+        // Validate role mappings structure
+        if (isset($import['role_mappings']) && is_array($import['role_mappings'])) {
+            foreach ($import['role_mappings'] as $index => $rule) {
                 if (!is_array($rule)) {
                     wp_send_json_error('Rolle-regel #' . ($index + 1) . ' må være et objekt');
                 }
@@ -1695,27 +1710,13 @@ class Feide_WP_Auth_Admin {
             }
         }
 
-        // Opprett backup av nåværende innstillinger
+        // Opprett backup av nåværende innstillinger før vi endrer noe
         $current_settings = get_option('feide_wp_auth_settings', array());
         update_option('feide_wp_auth_settings_backup', $current_settings);
         update_option('feide_wp_auth_settings_backup_time', time());
 
-        // Hent eksisterende innstillinger
-        $settings = get_option('feide_wp_auth_settings', array());
-
-        // Merge med importerte innstillinger
-        $fields_to_import = array(
-            'client_id', 'client_secret', 'redirect_uri', 'scope',
-            'authorize_endpoint', 'token_endpoint', 'userinfo_endpoint', 'groupinfo_endpoint',
-            'auto_create_users', 'allow_all_authenticated', 'default_role',
-            'attribute_mapping', 'role_rules', 'redirect_after_login', 'enable_debug_logging'
-        );
-
-        foreach ($fields_to_import as $field) {
-            if (isset($import[$field])) {
-                $settings[$field] = $import[$field];
-            }
-        }
+        // Saniter importerte data og merge med eksisterende innstillinger
+        $settings = $this->sanitize_import($import, $current_settings);
 
         // Lagre oppdaterte innstillinger
         update_option('feide_wp_auth_settings', $settings);
@@ -1725,6 +1726,90 @@ class Feide_WP_Auth_Admin {
         }
 
         wp_send_json_success('Innstillinger importert');
+    }
+
+    /**
+     * Saniter importerte innstillinger
+     *
+     * Speiler saniteringen i sanitize_settings(), men håndterer boolske verdier
+     * etter faktisk verdi (ikke checkbox-semantikk) slik at import bevarer false-verdier.
+     *
+     * @since 2.6.1
+     * @param array $import   Rådata fra importert JSON
+     * @param array $existing Nåværende innstillinger som grunnlag
+     * @return array Saniterte innstillinger
+     */
+    private function sanitize_import($import, $existing) {
+        $sanitized = $existing;
+
+        // Credentials - kun trim (ikke modifiser selve verdien)
+        if (isset($import['client_id'])) {
+            $sanitized['client_id'] = trim(sanitize_text_field($import['client_id']));
+        }
+        if (isset($import['client_secret'])) {
+            $sanitized['client_secret'] = trim(sanitize_text_field($import['client_secret']));
+        }
+
+        // URL-felt
+        $url_fields = array('redirect_uri', 'authorize_endpoint', 'token_endpoint', 'userinfo_endpoint', 'groupinfo_endpoint', 'redirect_after_login');
+        foreach ($url_fields as $field) {
+            if (isset($import[$field])) {
+                $sanitized[$field] = esc_url_raw($import[$field]);
+            }
+        }
+
+        // Tekstfelt
+        if (isset($import['scope'])) {
+            $sanitized['scope'] = sanitize_text_field($import['scope']);
+        }
+        if (isset($import['default_role'])) {
+            $sanitized['default_role'] = sanitize_text_field($import['default_role']);
+        }
+
+        // Boolske felt - bevar faktisk verdi
+        $bool_fields = array('auto_create_users', 'allow_all_authenticated', 'enable_debug_logging');
+        foreach ($bool_fields as $field) {
+            if (isset($import[$field])) {
+                $sanitized[$field] = (bool) $import[$field];
+            }
+        }
+
+        // Attributt-mapping
+        if (isset($import['attribute_mapping']) && is_array($import['attribute_mapping'])) {
+            $sanitized['attribute_mapping'] = array();
+            foreach ($import['attribute_mapping'] as $key => $value) {
+                $sanitized['attribute_mapping'][sanitize_key($key)] = sanitize_text_field($value);
+            }
+        }
+
+        // Rolle-mappinger (samme struktur som sanitize_settings)
+        if (isset($import['role_mappings']) && is_array($import['role_mappings'])) {
+            $sanitized['role_mappings'] = array();
+            foreach ($import['role_mappings'] as $mapping) {
+                if (isset($mapping['role']) && isset($mapping['criteria']) && is_array($mapping['criteria'])) {
+                    $clean_mapping = array(
+                        'role' => sanitize_text_field($mapping['role']),
+                        'name' => isset($mapping['name']) ? sanitize_text_field($mapping['name']) : '',
+                        'operator' => isset($mapping['operator']) ? sanitize_text_field($mapping['operator']) : 'AND',
+                        'criteria' => array()
+                    );
+
+                    foreach ($mapping['criteria'] as $criterion) {
+                        if (!empty($criterion['attribute']) || !empty($criterion['value'])) {
+                            $clean_mapping['criteria'][] = array(
+                                'attribute' => sanitize_text_field($criterion['attribute']),
+                                'comparison' => sanitize_text_field($criterion['comparison']),
+                                'value' => sanitize_text_field($criterion['value'])
+                            );
+                        }
+                    }
+
+                    $sanitized['role_mappings'][] = $clean_mapping;
+                }
+            }
+        }
+
+        return $sanitized;
     }
 
     /**

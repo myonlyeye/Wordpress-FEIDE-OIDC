@@ -15,6 +15,40 @@ This plugin is a collaboration between:
 
 A testament to what human creativity and AI capabilities can achieve together! 🚀
 
+## [2.6.1] - 2026-08-09
+
+Ports the Import/Export fixes originally made on a parallel v2.4.1 branch,
+rebased onto the current code so the v2.5.0 import validation is preserved.
+
+### Fixed
+- **CRITICAL: Import/Export silently dropped all role rules** - Export and
+  import used the field name `role_rules`, but role rules are stored under
+  `role_mappings`. Exported files always contained zero role rules, and
+  imported rules were written to a key nothing ever reads. Combined with the
+  fail-closed change in 2.6.0, migrating a site could leave it with no working
+  access rules at all. Export, import, validation and the JS preview now all
+  use `role_mappings`.
+- The v2.5.0 import validation (role existence, array types) also referenced
+  `role_rules`, so it never actually ran on real export files. It now
+  validates the imported role rules.
+
+### Security
+- **Imported settings are now sanitized** - Import wrote raw JSON values
+  straight to the database, bypassing `sanitize_settings()`. New
+  `sanitize_import()` escapes URLs, sanitizes text fields and cleans nested
+  role rules. Booleans are handled by actual value, so an import that sets a
+  flag to `false` no longer leaves it `true`.
+- `redirect_after_login` is now validated as a URL on import and passed
+  through `esc_url_raw()`. Previously an import file could store an arbitrary
+  string that later ended up in `wp_redirect()`.
+- Import now checks `json_last_error()` and requires the file to contain at
+  least one known FEIDE field before touching any settings.
+
+### Changed
+- Export metadata uses `FEIDE_WP_AUTH_VERSION` and `current_time('mysql')`
+  instead of a hard-coded version string and `date()`
+- Removed a redundant duplicate `get_option()` call in import
+
 ## [2.6.0] - 2026-08-09
 
 ### Security

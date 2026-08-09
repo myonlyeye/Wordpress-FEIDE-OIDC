@@ -214,6 +214,7 @@ Test authentication without affecting production:
 
 ### Security Updates History
 
+- **v2.6.1**: Import/Export `role_rules` → `role_mappings` fix (rules were silently dropped), import sanitization via `sanitize_import()`, `redirect_after_login` URL validation
 - **v2.6.0**: Fail-closed access control, removed remaining client secret exposure, fixed `not_equals` wildcard semantics, backup options deleted on uninstall, direct login start endpoint (`?feide-auth=start`)
 - **v2.5.0**: TOCTOU fix for state validation, HTTP status code validation, JSON schema validation
 - **v2.4.0**: Settings import/export with security warnings
@@ -249,7 +250,7 @@ AJAX endpoints (all require nonce + capability check):
 
 ## Version Information
 
-Current version: **2.6.0** (defined in `feide-wordpress-auth.php`)
+Current version: **2.6.1** (defined in `feide-wordpress-auth.php`)
 
 Version history in `CHANGELOG.md`.
 
