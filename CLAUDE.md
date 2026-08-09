@@ -250,7 +250,7 @@ AJAX endpoints (all require nonce + capability check):
 
 ## Version Information
 
-Current version: **2.6.2** (defined in `feide-wordpress-auth.php`)
+Current version: **2.6.3** (defined in `feide-wordpress-auth.php`)
 
 Version history in `CHANGELOG.md`.
 

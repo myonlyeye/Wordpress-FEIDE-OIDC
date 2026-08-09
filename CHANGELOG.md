@@ -15,6 +15,25 @@ This plugin is a collaboration between:
 
 A testament to what human creativity and AI capabilities can achieve together! 🚀
 
+## [2.6.3] - 2026-08-09
+
+### Fixed
+- **Debug logging (and the other checkboxes) could be turned on but never off** -
+  Browsers do not submit unchecked checkboxes at all, so the key was missing from
+  the POST, `array_key_exists()` was false and the saved `true` was kept. This
+  affected `enable_debug_logging`, `auto_create_users` and
+  `allow_all_authenticated`. Each checkbox now has a hidden `0` field in front of
+  it so the key is always submitted, and the value is read with `!empty()`
+  (`isset()` would have treated the string `"0"` as true). Saving from tabs that
+  do not contain these fields still leaves them untouched.
+- **"Slett all debug-data" reported success but deleted nothing on sites with a
+  persistent object cache** - The cleanup discovered which transients to remove by
+  querying the options table, but when a persistent object cache (Redis/Memcached)
+  is active WordPress stores transients outside the database entirely, so the query
+  matched nothing. Cleanup now deletes the known debug transients by name, and only
+  uses the database scan as a supplement for leftovers. Active OAuth login states
+  are still preserved.
+
 ## [2.6.2] - 2026-08-09
 
 ### Fixed

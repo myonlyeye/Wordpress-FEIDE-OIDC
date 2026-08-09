@@ -102,15 +102,18 @@ class Feide_WP_Auth_Admin {
             $sanitized['groupinfo_endpoint'] = esc_url_raw($input['groupinfo_endpoint']);
         }
 
-        // Auto-oppretting av brukere - kun oppdater hvis checkbox finnes i skjemaet
-        // Vi må sjekke om dette feltet faktisk er en del av det innsendte skjemaet
+        // Checkbox-felter: hvert felt har et skjult "0"-felt foran seg i skjemaet, så
+        // nøkkelen er alltid med i innsendingen ("0" av, "1" på). array_key_exists holder
+        // styr på om feltet i det hele tatt hørte til skjemaet som ble sendt - faner uten
+        // disse feltene (mapping/roller) skal ikke røre verdiene.
+        // Merk: !empty() er nødvendig - isset() ville gitt true også for "0".
         if (array_key_exists('auto_create_users', $input)) {
-            $sanitized['auto_create_users'] = isset($input['auto_create_users']) ? true : false;
+            $sanitized['auto_create_users'] = !empty($input['auto_create_users']);
         }
 
         // Tillat alle autentiserte brukere
         if (array_key_exists('allow_all_authenticated', $input)) {
-            $sanitized['allow_all_authenticated'] = isset($input['allow_all_authenticated']) ? true : false;
+            $sanitized['allow_all_authenticated'] = !empty($input['allow_all_authenticated']);
         }
 
         // Standard rolle for nye brukere
@@ -125,7 +128,7 @@ class Feide_WP_Auth_Admin {
 
         // Debug-logging
         if (array_key_exists('enable_debug_logging', $input)) {
-            $sanitized['enable_debug_logging'] = isset($input['enable_debug_logging']) ? true : false;
+            $sanitized['enable_debug_logging'] = !empty($input['enable_debug_logging']);
         }
 
         // Attributt-mapping - kun oppdater hvis det finnes i input
@@ -433,6 +436,9 @@ class Feide_WP_Auth_Admin {
                 </th>
                 <td>
                     <label>
+                        <?php // Skjult felt først: nettleseren sender ikke avkryssede bokser,
+                              // så uten dette kan innstillingen skrus på, men aldri av. ?>
+                        <input type="hidden" name="feide_wp_auth_settings[auto_create_users]" value="0">
                         <input type="checkbox" id="auto_create_users" name="feide_wp_auth_settings[auto_create_users]"
                                value="1" <?php checked(!empty($settings['auto_create_users'])); ?>>
                         Opprett automatisk nye brukere ved første innlogging
@@ -445,6 +451,7 @@ class Feide_WP_Auth_Admin {
                 </th>
                 <td>
                     <label>
+                        <input type="hidden" name="feide_wp_auth_settings[allow_all_authenticated]" value="0">
                         <input type="checkbox" id="allow_all_authenticated" name="feide_wp_auth_settings[allow_all_authenticated]"
                                value="1" <?php checked(!empty($settings['allow_all_authenticated'])); ?>>
                         Gi alle autentiserte FEIDE-brukere tilgang (ignorer rolle-regler)
@@ -491,6 +498,7 @@ class Feide_WP_Auth_Admin {
                 </th>
                 <td>
                     <label>
+                        <input type="hidden" name="feide_wp_auth_settings[enable_debug_logging]" value="0">
                         <input type="checkbox" id="enable_debug_logging" name="feide_wp_auth_settings[enable_debug_logging]"
                                value="1" <?php checked(!empty($settings['enable_debug_logging'])); ?>>
                         Lagre debug-informasjon om innlogginger og rolle-evalueringer
@@ -1578,29 +1586,49 @@ class Feide_WP_Auth_Admin {
     private function clear_debug_data() {
         global $wpdb;
 
-        // Finn alle FEIDE-transients UNNTATT aktive OAuth state-parametere.
-        // State-transientene (feide_auth_state_*) hører til innlogginger som pågår
-        // akkurat nå - sletter vi dem, feiler de med "Ugyldig state-parameter".
-        $like_transient = '_transient_' . $wpdb->esc_like('feide_') . '%';
-        $like_state     = '_transient_' . $wpdb->esc_like('feide_auth_state_') . '%';
+        // Kjente debug-transients. Disse slettes ved navn, ikke ved å lete i
+        // options-tabellen: på nettsteder med persistent objekt-cache (Redis/Memcached)
+        // lagrer WordPress transients UTENFOR databasen, og et databasesøk finner
+        // da ingenting i det hele tatt.
+        $keys = array(
+            'feide_last_attributes',
+            'feide_all_criteria_checks',
+            'feide_last_criteria_check',
+            'feide_access_denied_debug',
+            'feide_test_result',
+            'feide_test_error',
+        );
 
+        // Per-regel debug-nøkler (feide_criteria_check_N). Dekk antall lagrede
+        // rolle-regler med god margin, slik at nøkler fra tidligere oppsett også tas.
+        $settings = get_option('feide_wp_auth_settings', array());
+        $rule_count = isset($settings['role_mappings']) && is_array($settings['role_mappings'])
+            ? count($settings['role_mappings'])
+            : 0;
+        for ($i = 0; $i < $rule_count + 20; $i++) {
+            $keys[] = 'feide_criteria_check_' . $i;
+        }
+
+        // Suppler med alt annet som ligger igjen i databasen, UNNTATT aktive OAuth
+        // state-parametere: de hører til innlogginger som pågår akkurat nå, og
+        // slettes de feiler innloggingen med "Ugyldig state-parameter".
         $option_names = $wpdb->get_col(
             $wpdb->prepare(
                 "SELECT option_name FROM {$wpdb->options}
                 WHERE option_name LIKE %s
                 AND option_name NOT LIKE %s",
-                $like_transient,
-                $like_state
+                '_transient_' . $wpdb->esc_like('feide_') . '%',
+                '_transient_' . $wpdb->esc_like('feide_auth_state_') . '%'
             )
         );
-
-        // Bruk delete_transient() i stedet for rå DELETE, slik at også et persistent
-        // objekt-cache (Redis/Memcached) tømmes - ellers ville dataene fortsatt bli
-        // servert fra cache etter "sletting".
-        $deleted = 0;
         foreach ((array) $option_names as $option_name) {
-            $transient_key = preg_replace('/^_transient_/', '', $option_name);
-            if ($transient_key !== '' && delete_transient($transient_key)) {
+            $keys[] = preg_replace('/^_transient_/', '', $option_name);
+        }
+
+        // delete_transient() (ikke rå DELETE) slik at også objekt-cachen tømmes
+        $deleted = 0;
+        foreach (array_unique($keys) as $key) {
+            if ($key !== '' && strpos($key, 'feide_auth_state_') !== 0 && delete_transient($key)) {
                 $deleted++;
             }
         }
