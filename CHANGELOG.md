@@ -15,6 +15,32 @@ This plugin is a collaboration between:
 
 A testament to what human creativity and AI capabilities can achieve together! 🚀
 
+## [2.6.2] - 2026-08-09
+
+### Fixed
+- **CRITICAL: "Slett all debug-data" crashed the site** - Clicking the button on
+  the Debug tab produced a WordPress fatal error ("Det har oppstått en kritisk
+  feil på dette nettstedet"), and the debug data was never deleted.
+
+  Cause: the Debug tab's own `<form>` was nested inside the page-wide
+  `<form action="options.php">`. Nested forms are invalid HTML, so browsers
+  discard the inner tag and the button submitted to `options.php` instead. The
+  Debug tab has no `feide_wp_auth_settings[...]` fields, so WordPress passed
+  `null` to the sanitize callback, where `array_key_exists()` throws a
+  TypeError on PHP 8+.
+
+  Fixed in two places: only tabs that actually save settings are wrapped in the
+  settings form, and `sanitize_settings()` now returns the stored settings
+  unchanged when it receives anything that is not an array.
+- **Clearing debug data no longer breaks logins in progress** - The cleanup
+  deleted every `_transient_feide_%` row, including the `feide_auth_state_*`
+  transients belonging to active OAuth flows, so anyone mid-login got
+  "Ugyldig state-parameter". Active login states are now preserved.
+- Debug cleanup uses `delete_transient()` on the matched keys instead of a raw
+  `DELETE`, so sites with a persistent object cache (Redis/Memcached) actually
+  get the cached values flushed. LIKE patterns now go through `$wpdb->prepare()`
+  and `$wpdb->esc_like()`.
+
 ## [2.6.1] - 2026-08-09
 
 Ports the Import/Export fixes originally made on a parallel v2.4.1 branch,

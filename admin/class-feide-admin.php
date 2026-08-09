@@ -53,6 +53,13 @@ class Feide_WP_Auth_Admin {
         // Hent eksisterende innstillinger
         $existing = get_option('feide_wp_auth_settings', array());
 
+        // Hvis skjemaet ble sendt uten innstillingsfelter, gir WordPress oss null her.
+        // Uten denne sjekken kaster array_key_exists() nedenfor en TypeError på PHP 8+
+        // og feller hele nettstedet med "kritisk feil".
+        if (!is_array($input)) {
+            return $existing;
+        }
+
         // Start med eksisterende verdier
         $sanitized = $existing;
 
@@ -273,32 +280,46 @@ class Feide_WP_Auth_Admin {
                 </a>
             </h2>
 
-            <form method="post" action="options.php">
-                <?php settings_fields('feide_wp_auth_settings_group'); ?>
+            <?php
+            // Kun faner som faktisk lagrer innstillinger skal pakkes inn i
+            // options.php-skjemaet. Debug-, Test- og Import/Eksport-fanene har egne
+            // skjemaer/AJAX-knapper, og nøstede <form>-tagger er ugyldig HTML:
+            // nettleseren forkaster det indre skjemaet, slik at knappene der havner
+            // i options.php uten innstillingsfelter.
+            // Speiler default-grenen i switchen nedenfor: ukjente faner viser
+            // innstillinger, og trenger derfor skjemaet.
+            $needs_settings_form = !in_array($active_tab, array('test', 'import-export', 'debug'), true);
 
-                <?php
-                switch ($active_tab) {
-                    case 'test':
-                        $this->render_test_tab($settings);
-                        break;
-                    case 'mapping':
-                        $this->render_mapping_tab($settings);
-                        break;
-                    case 'roles':
-                        $this->render_roles_tab($settings);
-                        break;
-                    case 'import-export':
-                        $this->render_import_export_tab($settings);
-                        break;
-                    case 'debug':
-                        $this->render_debug_tab($settings);
-                        break;
-                    default:
-                        $this->render_settings_tab($settings);
-                        break;
-                }
-                ?>
-            </form>
+            if ($needs_settings_form) {
+                echo '<form method="post" action="options.php">';
+                settings_fields('feide_wp_auth_settings_group');
+            }
+
+            switch ($active_tab) {
+                case 'test':
+                    $this->render_test_tab($settings);
+                    break;
+                case 'mapping':
+                    $this->render_mapping_tab($settings);
+                    break;
+                case 'roles':
+                    $this->render_roles_tab($settings);
+                    break;
+                case 'import-export':
+                    $this->render_import_export_tab($settings);
+                    break;
+                case 'debug':
+                    $this->render_debug_tab($settings);
+                    break;
+                default:
+                    $this->render_settings_tab($settings);
+                    break;
+            }
+
+            if ($needs_settings_form) {
+                echo '</form>';
+            }
+            ?>
         </div>
         <?php
     }
@@ -1557,12 +1578,38 @@ class Feide_WP_Auth_Admin {
     private function clear_debug_data() {
         global $wpdb;
 
-        // Slett alle FEIDE-relaterte transients
-        $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_feide_%' OR option_name LIKE '_transient_timeout_feide_%'");
+        // Finn alle FEIDE-transients UNNTATT aktive OAuth state-parametere.
+        // State-transientene (feide_auth_state_*) hører til innlogginger som pågår
+        // akkurat nå - sletter vi dem, feiler de med "Ugyldig state-parameter".
+        $like_transient = '_transient_' . $wpdb->esc_like('feide_') . '%';
+        $like_state     = '_transient_' . $wpdb->esc_like('feide_auth_state_') . '%';
+
+        $option_names = $wpdb->get_col(
+            $wpdb->prepare(
+                "SELECT option_name FROM {$wpdb->options}
+                WHERE option_name LIKE %s
+                AND option_name NOT LIKE %s",
+                $like_transient,
+                $like_state
+            )
+        );
+
+        // Bruk delete_transient() i stedet for rå DELETE, slik at også et persistent
+        // objekt-cache (Redis/Memcached) tømmes - ellers ville dataene fortsatt bli
+        // servert fra cache etter "sletting".
+        $deleted = 0;
+        foreach ((array) $option_names as $option_name) {
+            $transient_key = preg_replace('/^_transient_/', '', $option_name);
+            if ($transient_key !== '' && delete_transient($transient_key)) {
+                $deleted++;
+            }
+        }
 
         if (WP_DEBUG) {
-            error_log('FEIDE Auth: All debug data cleared');
+            error_log('FEIDE Auth: Debug data cleared (' . $deleted . ' transients, active login states preserved)');
         }
+
+        return $deleted;
     }
 
     /**
