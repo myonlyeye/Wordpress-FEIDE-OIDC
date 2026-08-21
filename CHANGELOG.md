@@ -15,6 +15,40 @@ This plugin is a collaboration between:
 
 A testament to what human creativity and AI capabilities can achieve together! 🚀
 
+## [2.7.0] - 2026-08-09
+
+### Fixed
+- **First-time logins failed with "Ugyldig state-parameter. Mulig CSRF-angrep."**
+  The state parameter was stored for 10 minutes and validated against the same
+  10 minutes. WordPress makes an expired transient disappear, so `get_transient()`
+  returned `false` and the code reported a possible CSRF attack - the friendlier
+  "state has expired" branch was unreachable dead code.
+
+  A federated login can legitimately take longer than 10 minutes: Feide shows a
+  consent screen the first time a user visits a service, the home organization may
+  redirect to Entra ID, and MFA enrolment adds more steps. Second and later logins
+  reuse existing SSO sessions and finish in seconds, which is why the error only
+  ever appeared on a user's first login.
+
+  State is now valid for 30 minutes (`Feide_State_Manager::STATE_LIFETIME`) but
+  kept in storage for 60 (`STATE_STORAGE_TTL`). Because storage outlives validity,
+  a late login can be told apart from an unknown state, and the user gets
+  "Innloggingen tok for lang tid og må gjentas" instead of a security accusation.
+- **Replayed callbacks no longer show an error to users who are already logged in.**
+  The state is consumed on first use, so a refresh, a back-navigation or browser
+  prefetch hitting the callback a second time produced the same alarming message.
+  When the state is already consumed and the visitor has a valid session, they are
+  now redirected to the configured destination instead.
+
+### Changed
+- State validation returns distinct error codes (`invalid_state_format`,
+  `invalid_state`, `expired_state`) so callers can react to each case
+- Failed state validation now renders a proper error page with a "Prøv å logge inn
+  på nytt" link and an HTTP 400 status, instead of a bare message
+- Neither user-facing state message accuses the visitor of a CSRF attack; the
+  security property is unchanged (single-use, cryptographically random, bound to
+  one login attempt)
+
 ## [2.6.3] - 2026-08-09
 
 ### Fixed

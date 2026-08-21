@@ -96,6 +96,18 @@ class Feide_Authenticator {
     }
 
     /**
+     * Where to send the user once they are logged in
+     *
+     * @since 2.7.0
+     * @return string
+     */
+    private function get_post_login_redirect() {
+        return !empty($this->settings['redirect_after_login'])
+            ? $this->settings['redirect_after_login']
+            : home_url();
+    }
+
+    /**
      * Build the FEIDE authorization URL for a given state parameter
      *
      * @since 2.6.0
@@ -186,7 +198,28 @@ class Feide_Authenticator {
         $state_data = Feide_State_Manager::validate_and_consume_state($state);
 
         if (is_wp_error($state_data)) {
-            wp_die($state_data->get_error_message());
+            // Dobbel callback: state-en er allerede brukt opp av et tidligere kall som
+            // logget brukeren inn (oppdatering, tilbakeknapp, eller nettleserens
+            // forhåndslasting). Å vise en feilmelding til en bruker som ALLEREDE er
+            // innlogget er bare forvirrende - send dem dit de skulle.
+            if ($state_data->get_error_code() === 'invalid_state' && is_user_logged_in()) {
+                if (WP_DEBUG) {
+                    error_log('FEIDE Auth: Callback replayed with a consumed state, but user is already logged in - redirecting instead of erroring');
+                }
+                wp_redirect($this->get_post_login_redirect());
+                exit;
+            }
+
+            if (WP_DEBUG) {
+                error_log('FEIDE Auth: State validation failed (' . $state_data->get_error_code() . ')');
+            }
+
+            wp_die(
+                esc_html($state_data->get_error_message())
+                    . '<p><a href="' . esc_url(Feide_WP_Auth::get_start_url()) . '">Prøv å logge inn på nytt</a></p>',
+                'Innlogging mislyktes',
+                array('response' => 400)
+            );
         }
 
         // Extract test mode flag
@@ -391,9 +424,7 @@ class Feide_Authenticator {
         wp_set_auth_cookie($user->ID, true);
 
         // Omdiriger til konfigurert URL (standard: hjemmeside)
-        $redirect_url = isset($this->settings['redirect_after_login']) && !empty($this->settings['redirect_after_login'])
-            ? $this->settings['redirect_after_login']
-            : home_url();
+        $redirect_url = $this->get_post_login_redirect();
 
         if (WP_DEBUG) {
             error_log('FEIDE Auth: Redirecting user ' . $user->user_login . ' to: ' . $redirect_url);

@@ -112,7 +112,7 @@ User metadata (per user):
 
 ### Transients (for OAuth state and debugging)
 
-- `feide_auth_state_{state}` - Valid for 10 minutes (CSRF protection)
+- `feide_auth_state_{state}` - Valid for 30 minutes, stored for 60 (CSRF protection; see `Feide_State_Manager::STATE_LIFETIME`)
 - `feide_test_mode_{state}` - Test authentication flag
 - `feide_last_attributes` - Debug info (requires debug enabled)
 - `feide_last_criteria_check` - Role evaluation debug
@@ -214,6 +214,7 @@ Test authentication without affecting production:
 
 ### Security Updates History
 
+- **v2.7.0**: State lifetime raised to 30 min (stored 60) so first-time federated logins no longer fail; expired vs unknown state now distinguishable; replayed callbacks redirect logged-in users instead of erroring
 - **v2.6.1**: Import/Export `role_rules` → `role_mappings` fix (rules were silently dropped), import sanitization via `sanitize_import()`, `redirect_after_login` URL validation
 - **v2.6.0**: Fail-closed access control, removed remaining client secret exposure, fixed `not_equals` wildcard semantics, backup options deleted on uninstall, direct login start endpoint (`?feide-auth=start`)
 - **v2.5.0**: TOCTOU fix for state validation, HTTP status code validation, JSON schema validation
@@ -250,7 +251,7 @@ AJAX endpoints (all require nonce + capability check):
 
 ## Version Information
 
-Current version: **2.6.3** (defined in `feide-wordpress-auth.php`)
+Current version: **2.7.0** (defined in `feide-wordpress-auth.php`)
 
 Version history in `CHANGELOG.md`.
 
